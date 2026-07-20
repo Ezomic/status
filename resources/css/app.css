@@ -41,6 +41,11 @@
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
 
+    --color-status-up: var(--status-up);
+    --color-status-degraded: var(--status-degraded);
+    --color-status-down: var(--status-down);
+    --color-status-idle: var(--status-idle);
+
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
@@ -106,6 +111,12 @@
     --accent-foreground: hsl(0 0% 9%);
     --destructive: hsl(0 84.2% 60.2%);
     --destructive-foreground: hsl(0 0% 98%);
+
+    /* Colour is reserved for state: the chrome stays neutral. */
+    --status-up: hsl(152 46% 34%);
+    --status-degraded: hsl(38 78% 36%);
+    --status-down: hsl(4 62% 48%);
+    --status-idle: hsl(215 14% 71%);
     --border: hsl(0 0% 92.8%);
     --input: hsl(0 0% 89.8%);
     --ring: hsl(0 0% 3.9%);
@@ -143,6 +154,11 @@
     --accent-foreground: hsl(0 0% 98%);
     --destructive: hsl(0 84% 60%);
     --destructive-foreground: hsl(0 0% 98%);
+
+    --status-up: hsl(150 44% 44%);
+    --status-degraded: hsl(40 66% 53%);
+    --status-down: hsl(5 63% 58%);
+    --status-idle: hsl(215 14% 40%);
     --border: hsl(0 0% 14.9%);
     --input: hsl(0 0% 14.9%);
     --ring: hsl(0 0% 83.1%);
