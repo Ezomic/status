@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /*
@@ -16,6 +17,11 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(function () {
+        // A request with no matching fake otherwise escapes to the real network,
+        // which silently turns a broken fake into a passing-looking test.
+        Http::preventStrayRequests();
+    })
     ->in('Feature');
 
 /*
