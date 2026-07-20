@@ -30,15 +30,17 @@ it('records an unexpected status code rather than treating it as an error', func
 });
 
 it('returns a failed result instead of throwing when the connection fails', function () {
-    Http::fake(['*gone.test*' => fn () => throw new ConnectionException('cURL error 28: Operation timed out')]);
+    Http::fake(['*gone.test*' => fn () => throw new ConnectionException(
+        'cURL error 28: Operation timed out (see https://curl.se/libcurl/c/libcurl-errors.html) for https://gone.test'
+    )]);
 
     $service = Service::factory()->create(['url' => 'https://gone.test', 'timeout_seconds' => 5]);
 
     $result = app(HttpProbe::class)->probe($service);
 
     expect($result->statusCode)->toBeNull()
-        ->and($result->error)->toContain('Operation timed out')
-        ->and($result->responseTimeMs)->toBe(5000);
+        ->and($result->error)->toBe('cURL error 28: Operation timed out')
+        ->and($result->responseTimeMs)->toBe(0);
 });
 
 it('maps pooled responses back to the correct service', function () {

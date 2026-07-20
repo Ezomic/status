@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Models\Service;
 use App\ValueObjects\ProbeResult;
 use GuzzleHttp\TransferStats;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
@@ -51,7 +50,7 @@ class HttpProbe
 
         foreach ($services as $service) {
             $response = $responses[(string) $service->id] ?? null;
-            $results[$service->id] = $this->toResult($response, $elapsed->get($service->id), $service);
+            $results[$service->id] = $this->toResult($response, $elapsed->get($service->id));
         }
 
         return $results;
@@ -62,18 +61,17 @@ class HttpProbe
         return $this->probeMany(collect([$service]))[$service->id];
     }
 
-    private function toResult(mixed $response, ?float $transferSeconds, Service $service): ProbeResult
+    private function toResult(mixed $response, ?float $transferSeconds): ProbeResult
     {
+        // Guzzle does not fire on_stats when the connection never opens, so a failed
+        // probe reports 0. Do not substitute the timeout: a DNS failure resolves in
+        // milliseconds, and recording it as a full timeout spikes the latency chart.
         $responseTimeMs = $transferSeconds !== null
             ? (int) round($transferSeconds * 1000)
             : 0;
 
         if ($response instanceof Response) {
             return new ProbeResult($response->status(), $responseTimeMs);
-        }
-
-        if ($response instanceof ConnectionException) {
-            return new ProbeResult(null, $service->timeout_seconds * 1000, $this->message($response));
         }
 
         if ($response instanceof Throwable) {
@@ -83,8 +81,15 @@ class HttpProbe
         return new ProbeResult(null, $responseTimeMs, 'No response');
     }
 
+    /** Guzzle appends a docs link and the full URL to every cURL error; neither reads well in an incident list. */
     private function message(Throwable $exception): string
     {
-        return mb_substr($exception->getMessage(), 0, 255);
+        $message = (string) preg_replace(
+            ['/\s*\(see https:\/\/curl\.se\/[^)]*\)/', '/\s+for https?:\/\/\S+$/'],
+            '',
+            $exception->getMessage(),
+        );
+
+        return mb_substr(trim($message), 0, 255);
     }
 }

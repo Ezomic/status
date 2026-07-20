@@ -16,8 +16,10 @@ return new class extends Migration
             $table->string('url');
             $table->unsignedSmallInteger('expected_status_code')->default(200);
             $table->unsignedInteger('interval_seconds')->default(60);
-            $table->unsignedSmallInteger('timeout_seconds')->default(5);
-            $table->unsignedInteger('degraded_threshold_ms')->default(1000);
+            // 15s, not 5s: a burst of concurrent cold TLS handshakes routinely pushes a
+            // healthy host past 5s, which reports a false outage.
+            $table->unsignedSmallInteger('timeout_seconds')->default(15);
+            $table->unsignedInteger('degraded_threshold_ms')->default(2000);
             $table->boolean('is_active')->default(true);
 
             // Denormalised from the latest check so the list view does not need a
