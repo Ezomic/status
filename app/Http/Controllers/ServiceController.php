@@ -121,11 +121,13 @@ class ServiceController extends Controller
         return [
             'id' => $service->id,
             'name' => $service->name,
+            'slug' => $service->slug,
             'url' => $service->url,
             'host' => $service->host(),
             'state' => $service->current_state->value,
             'state_label' => $service->current_state->label(),
             'is_active' => $service->is_active,
+            'is_public' => $service->is_public,
             // 0 only ever means the connection never opened, so there is no time to show.
             'last_response_time_ms' => $service->last_response_time_ms ?: null,
             'last_checked_at' => $service->last_checked_at?->toIso8601String(),

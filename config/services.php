@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    // Bearer token that consumers (e.g. the id portal, ID-13) present to read
+    // the machine-readable status endpoint. Unset = endpoint disabled.
+    'status_endpoint' => [
+        'token' => env('STATUS_ENDPOINT_TOKEN'),
+    ],
+
 ];

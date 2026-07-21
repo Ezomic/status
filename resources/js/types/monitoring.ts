@@ -11,11 +11,13 @@ export type StripSlot = {
 export type ServiceSummary = {
     id: number;
     name: string;
+    slug: string | null;
     url: string;
     host: string;
     state: StatusState;
     state_label: string;
     is_active: boolean;
+    is_public: boolean;
     last_response_time_ms: number | null;
     last_checked_at: string | null;
 };
