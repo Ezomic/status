@@ -41,4 +41,12 @@ return [
         'token' => env('STATUS_ENDPOINT_TOKEN'),
     ],
 
+    // id SSO (OAuth2 authorization-code). The only way to sign in (STAT-7).
+    'id' => [
+        'base_url' => rtrim((string) env('ID_BASE_URL', 'https://id.thijssensoftware.nl'), '/'),
+        'client_id' => env('ID_CLIENT_ID'),
+        'client_secret' => env('ID_CLIENT_SECRET'),
+        'redirect_uri' => env('ID_REDIRECT_URI'),
+    ],
+
 ];
