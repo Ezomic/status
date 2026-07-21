@@ -31,6 +31,7 @@ const form = useForm({
     timeout_seconds: props.service?.timeout_seconds ?? 5,
     degraded_threshold_ms: props.service?.degraded_threshold_ms ?? 1000,
     is_active: props.service?.is_active ?? true,
+    is_public: props.service?.is_public ?? false,
 });
 
 watch(open, (isOpen) => {
@@ -202,6 +203,21 @@ function submit() {
                             </p>
                         </div>
                         <Switch id="is_active" v-model="form.is_active" />
+                    </div>
+
+                    <div
+                        class="flex items-center justify-between rounded-lg border p-3"
+                    >
+                        <div>
+                            <Label for="is_public" class="font-medium"
+                                >Public status</Label
+                            >
+                            <p class="text-sm text-muted-foreground">
+                                Expose this service's state on the public status
+                                endpoint and portal. No URL or timing is shared.
+                            </p>
+                        </div>
+                        <Switch id="is_public" v-model="form.is_public" />
                     </div>
                 </div>
 

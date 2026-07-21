@@ -19,6 +19,7 @@ class ServiceRequest extends FormRequest
             'timeout_seconds' => ['required', 'integer', 'min:1', 'max:60'],
             'degraded_threshold_ms' => ['required', 'integer', 'min:1', 'max:60000'],
             'is_active' => ['required', 'boolean'],
+            'is_public' => ['sometimes', 'boolean'],
         ];
     }
 

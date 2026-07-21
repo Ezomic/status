@@ -8,20 +8,24 @@ use App\Enums\ServiceState;
 use Carbon\CarbonImmutable;
 use Database\Factories\ServiceFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 /**
  * @property int $id
  * @property string $name
+ * @property string|null $slug
  * @property string $url
  * @property int $expected_status_code
  * @property int $interval_seconds
  * @property int $timeout_seconds
  * @property int $degraded_threshold_ms
  * @property bool $is_active
+ * @property bool $is_public
  * @property ServiceState $current_state
  * @property CarbonImmutable|null $last_checked_at
  * @property int|null $last_response_time_ms
@@ -32,17 +36,52 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 #[Fillable([
     'name',
+    'slug',
     'url',
     'expected_status_code',
     'interval_seconds',
     'timeout_seconds',
     'degraded_threshold_ms',
     'is_active',
+    'is_public',
 ])]
 class Service extends Model
 {
     /** @use HasFactory<ServiceFactory> */
     use HasFactory;
+
+    protected static function booted(): void
+    {
+        // A slug is the only identifier we ever expose publicly, so derive one
+        // from the name whenever it is missing (uniqueness is enforced by the
+        // column; collisions get a short suffix).
+        static::saving(function (Service $service): void {
+            if (($service->slug ?? '') !== '') {
+                return;
+            }
+
+            $base = Str::slug($service->name) ?: 'service';
+            $slug = $base;
+            $i = 2;
+
+            while (static::query()->where('slug', $slug)->whereKeyNot($service->getKey())->exists()) {
+                $slug = "{$base}-{$i}";
+                $i++;
+            }
+
+            $service->slug = $slug;
+        });
+    }
+
+    /**
+     * Services that opt in to public visibility (status endpoint + page).
+     *
+     * @param  Builder<Service>  $query
+     */
+    public function scopePublic(Builder $query): void
+    {
+        $query->where('is_active', true)->where('is_public', true);
+    }
 
     /** @return HasMany<Check, $this> */
     public function checks(): HasMany
@@ -81,6 +120,7 @@ class Service extends Model
             'timeout_seconds' => 'integer',
             'degraded_threshold_ms' => 'integer',
             'is_active' => 'boolean',
+            'is_public' => 'boolean',
             'current_state' => ServiceState::class,
             'last_checked_at' => 'datetime',
             'last_response_time_ms' => 'integer',
