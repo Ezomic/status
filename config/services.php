@@ -47,6 +47,8 @@ return [
         'client_id' => env('ID_CLIENT_ID'),
         'client_secret' => env('ID_CLIENT_SECRET'),
         'redirect_uri' => env('ID_REDIRECT_URI'),
+        'slug' => env('ID_APP_SLUG', 'status'),
+        'portal_cache_ttl' => (int) env('ID_PORTAL_TTL', 300),
     ],
 
 ];
