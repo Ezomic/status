@@ -165,7 +165,7 @@ class ServiceController extends Controller
     /**
      * Last 24h of response times, thinned to at most 30 points per service.
      *
-     * @return array<int, array<int, int>>
+     * @return array<int|string, list<int>>
      */
     private function sparklines(): array
     {
@@ -182,7 +182,7 @@ class ServiceController extends Controller
                 $step = max(1, (int) ceil(count($values) / 30));
 
                 return array_values(array_map(
-                    static fn (mixed $value): int => (int) $value,
+                    static fn (mixed $value): int => is_numeric($value) ? (int) $value : 0,
                     array_filter($values, static fn (mixed $v, int $i): bool => $i % $step === 0, ARRAY_FILTER_USE_BOTH),
                 ));
             })

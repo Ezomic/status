@@ -22,8 +22,8 @@ class IdOAuthController extends Controller
         $request->session()->put('id_oauth.verifier', $verifier);
 
         $query = http_build_query([
-            'client_id' => (string) config('services.id.client_id'),
-            'redirect_uri' => (string) config('services.id.redirect_uri'),
+            'client_id' => $this->idConfig('client_id'),
+            'redirect_uri' => $this->idConfig('redirect_uri'),
             'response_type' => 'code',
             'scope' => '',
             'state' => $state,
@@ -31,41 +31,54 @@ class IdOAuthController extends Controller
             'code_challenge_method' => 'S256',
         ]);
 
-        return redirect()->away(config('services.id.base_url').'/oauth/authorize?'.$query);
+        return redirect()->away($this->idConfig('base_url').'/oauth/authorize?'.$query);
     }
 
     public function callback(Request $request): RedirectResponse
     {
         $expectedState = $request->session()->pull('id_oauth.state');
         $verifier = $request->session()->pull('id_oauth.verifier');
+        $expectedState = is_string($expectedState) ? $expectedState : '';
+        $verifier = is_string($verifier) ? $verifier : '';
+
+        $state = $request->string('state')->value();
 
         abort_if(
-            $request->input('state') === null || ! hash_equals((string) $expectedState, (string) $request->input('state')),
+            $state === '' || ! hash_equals($expectedState, $state),
             Response::HTTP_FORBIDDEN,
             'Invalid authentication state.'
         );
 
         abort_if($request->missing('code'), Response::HTTP_FORBIDDEN, 'Authorization was denied.');
 
-        $token = Http::asForm()->post(config('services.id.base_url').'/oauth/token', [
+        $token = Http::asForm()->post($this->idConfig('base_url').'/oauth/token', [
             'grant_type' => 'authorization_code',
-            'client_id' => (string) config('services.id.client_id'),
-            'client_secret' => (string) config('services.id.client_secret'),
-            'redirect_uri' => (string) config('services.id.redirect_uri'),
-            'code_verifier' => (string) $verifier,
-            'code' => (string) $request->input('code'),
+            'client_id' => $this->idConfig('client_id'),
+            'client_secret' => $this->idConfig('client_secret'),
+            'redirect_uri' => $this->idConfig('redirect_uri'),
+            'code_verifier' => $verifier,
+            'code' => $request->string('code')->value(),
         ]);
 
         abort_unless($token->successful(), Response::HTTP_FORBIDDEN, 'Could not exchange authorization code.');
 
-        $profile = Http::withToken($token->json('access_token'))
+        $accessToken = $token->json('access_token');
+        abort_unless(is_string($accessToken), Response::HTTP_FORBIDDEN, 'Malformed token response.');
+
+        $profile = Http::withToken($accessToken)
             ->acceptJson()
-            ->get(config('services.id.base_url').'/api/userinfo');
+            ->get($this->idConfig('base_url').'/api/userinfo');
 
         abort_unless($profile->successful(), Response::HTTP_FORBIDDEN, 'You do not have access to Status.');
 
-        $sub = (string) $profile->json('sub');
-        $email = (string) $profile->json('email');
+        $sub = $profile->json('sub');
+        $email = $profile->json('email');
+        $name = $profile->json('name');
+        abort_unless(
+            is_string($sub) && is_string($email) && is_string($name),
+            Response::HTTP_FORBIDDEN,
+            'Malformed profile response.'
+        );
 
         // Match on the id subject, falling back to email so a pre-existing local
         // account is linked to its id identity on first SSO login rather than
@@ -75,7 +88,7 @@ class IdOAuthController extends Controller
             ?? new User;
 
         $user->forceFill([
-            'name' => (string) $profile->json('name'),
+            'name' => $name,
             'email' => $email,
             'id_sub' => $sub,
         ])->save();
@@ -98,5 +111,12 @@ class IdOAuthController extends Controller
     private function codeChallenge(string $verifier): string
     {
         return rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+    }
+
+    private function idConfig(string $key): string
+    {
+        $value = config("services.id.{$key}");
+
+        return is_string($value) ? $value : '';
     }
 }
