@@ -54,7 +54,7 @@ class BuildUptimeStrip
         $strips = [];
 
         foreach ($buckets as $serviceId => $rows) {
-            /** @var Collection<int, \stdClass|Model> $rows */
+            /** @var Collection<int, Model> $rows */
             $byDay = $rows->keyBy('day');
 
             $strips[(int) $serviceId] = $timeline
@@ -66,15 +66,15 @@ class BuildUptimeStrip
     }
 
     /** @return array{date: string, state: string, uptime: float|null} */
-    private function slot(string $date, mixed $row): array
+    private function slot(string $date, ?Model $row): array
     {
         if ($row === null) {
             return ['date' => $date, 'state' => 'none', 'uptime' => null];
         }
 
-        $total = (int) $row->total;
-        $down = (int) $row->down_count;
-        $degraded = (int) $row->degraded_count;
+        $total = $this->toInt($row->getAttribute('total'));
+        $down = $this->toInt($row->getAttribute('down_count'));
+        $degraded = $this->toInt($row->getAttribute('degraded_count'));
 
         $state = match (true) {
             $down > 0 => ServiceState::Down->value,
@@ -87,5 +87,10 @@ class BuildUptimeStrip
             'state' => $state,
             'uptime' => round((($total - $down) / $total) * 100, 2),
         ];
+    }
+
+    private function toInt(mixed $value): int
+    {
+        return is_numeric($value) ? (int) $value : 0;
     }
 }
