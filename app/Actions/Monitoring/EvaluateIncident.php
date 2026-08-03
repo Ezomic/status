@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Actions\Monitoring;
 
+use App\Enums\IncidentChange;
 use App\Enums\ServiceState;
 use App\Models\Check;
 use App\Models\Incident;
 use App\Models\Service;
+use App\Models\User;
+use App\Notifications\IncidentStatusChanged;
+use Illuminate\Support\Facades\Notification;
 
 class EvaluateIncident
 {
@@ -31,6 +35,8 @@ class EvaluateIncident
             // Recovery happened at the first passing check, not at the one confirming it.
             $open->update(['resolved_at' => $previous->checked_at]);
 
+            $this->announce($open, IncidentChange::Resolved);
+
             return $open;
         }
 
@@ -41,11 +47,15 @@ class EvaluateIncident
         $confirmed = $check->state->isWorseThan($previous->state) ? $check : $previous;
 
         if ($open === null) {
-            return $service->incidents()->create([
+            $incident = $service->incidents()->create([
                 'severity' => $confirmed->state,
                 'started_at' => $previous->checked_at,
                 'reason' => $this->reasonFor($service, $confirmed),
             ]);
+
+            $this->announce($incident, IncidentChange::Opened);
+
+            return $incident;
         }
 
         if ($confirmed->state->isWorseThan($open->severity)) {
@@ -53,9 +63,23 @@ class EvaluateIncident
                 'severity' => $confirmed->state,
                 'reason' => $this->reasonFor($service, $confirmed),
             ]);
+
+            $this->announce($open, IncidentChange::Escalated);
         }
 
         return $open;
+    }
+
+    /**
+     * Only the three branches above announce anything, which is what keeps this
+     * to one email per transition: this action runs after every check, and an
+     * incident that stays open simply does not re-enter any of them. It also
+     * means the housekeeping close in SaveService, which resolves an incident
+     * when monitoring is paused, stays silent — that is not a recovery.
+     */
+    private function announce(Incident $incident, IncidentChange $change): void
+    {
+        Notification::send(User::all(), new IncidentStatusChanged($incident, $change));
     }
 
     /**

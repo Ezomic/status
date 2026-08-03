@@ -3,11 +3,15 @@
 declare(strict_types=1);
 
 use App\Actions\Monitoring\EvaluateIncident;
+use App\Actions\Services\SaveService;
 use App\Enums\ServiceState;
 use App\Models\Check;
 use App\Models\Incident;
 use App\Models\Service;
+use App\Models\User;
+use App\Notifications\IncidentStatusChanged;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Notification;
 
 /**
  * Feed a service a sequence of check states, evaluating after each one, exactly as the
@@ -190,4 +194,90 @@ it('records a threshold reason for a degraded incident', function () {
     play($this->service, [ServiceState::Degraded, ServiceState::Degraded]);
 
     expect(Incident::sole()->reason)->toBe('Responded in 2,400ms, over the 1,000ms threshold');
+});
+
+/**
+ * STAT-4: a monitor you have to remember to look at is not monitoring. These
+ * pin the dedupe rule, which is the part that silently rots: this action runs
+ * after every check, so a notification that fires anywhere but on the three
+ * transitions would mail on every failing check for the life of the outage.
+ */
+it('sends one email when an incident opens, however long it stays open', function () {
+    Notification::fake();
+    User::factory()->create();
+
+    play($this->service, array_fill(0, 6, ServiceState::Down));
+
+    Notification::assertSentTimes(IncidentStatusChanged::class, 1);
+});
+
+it('sends one recovery email when the service comes back', function () {
+    Notification::fake();
+    User::factory()->create();
+
+    play($this->service, [
+        ServiceState::Down, ServiceState::Down, ServiceState::Down,
+        ServiceState::Up, ServiceState::Up, ServiceState::Up,
+    ]);
+
+    Notification::assertSentTimes(IncidentStatusChanged::class, 2);
+});
+
+it('sends a further email when degraded escalates to down, but not for a repeat at the same severity', function () {
+    Notification::fake();
+    User::factory()->create();
+
+    play($this->service, [
+        ServiceState::Degraded, ServiceState::Degraded, ServiceState::Degraded,
+        ServiceState::Down, ServiceState::Down,
+    ]);
+
+    // Opened as degraded, then escalated to down. The extra degraded and down
+    // checks in between add nothing.
+    Notification::assertSentTimes(IncidentStatusChanged::class, 2);
+});
+
+it('says nothing when a paused service closes its incident', function () {
+    User::factory()->create();
+
+    play($this->service, [ServiceState::Down, ServiceState::Down]);
+
+    // Faked only now, so the opening email is not what we are counting.
+    Notification::fake();
+
+    app(SaveService::class)->handle(['is_active' => false], $this->service);
+
+    expect(Incident::sole()->resolved_at)->not->toBeNull()
+        ->and(Incident::sole()->reason)->toBe('Monitoring disabled');
+
+    Notification::assertNothingSent();
+});
+
+it('describes the outage in the mail it sends', function () {
+    Notification::fake();
+    $user = User::factory()->create();
+
+    play($this->service, [ServiceState::Down, ServiceState::Down]);
+
+    Notification::assertSentTo($user, IncidentStatusChanged::class, function (IncidentStatusChanged $notification) use ($user): bool {
+        $mail = $notification->toMail($user);
+
+        return str_contains((string) $mail->subject, $this->service->name)
+            && in_array('Returned 500, expected 200', $mail->introLines, true);
+    });
+});
+
+it('reports how long the service was down in the recovery mail', function () {
+    Notification::fake();
+    $user = User::factory()->create();
+
+    play($this->service, [
+        ServiceState::Down, ServiceState::Down, ServiceState::Down, ServiceState::Up, ServiceState::Up,
+    ]);
+
+    $resolved = collect(Notification::sent($user, IncidentStatusChanged::class))
+        ->map(fn (IncidentStatusChanged $notification): string => (string) $notification->toMail($user)->subject)
+        ->first(fn (string $subject): bool => str_contains($subject, 'Resolved'));
+
+    expect($resolved)->toContain('is back up');
 });
