@@ -205,10 +205,13 @@ it('records a threshold reason for a degraded incident', function () {
  * pin the dedupe rule, which is the part that silently rots: this action runs
  * after every check, so a notification that fires anywhere but on the three
  * transitions would mail on every failing check for the life of the outage.
+ *
+ * Recipients opt in since STAT-24, so these opt their user in explicitly: what is
+ * under test here is how often mail is sent, not who receives it.
  */
 it('sends one email when an incident opens, however long it stays open', function () {
     Notification::fake();
-    User::factory()->create();
+    User::factory()->create(['wants_incident_mail' => true]);
 
     play($this->service, array_fill(0, 6, ServiceState::Down));
 
@@ -217,7 +220,7 @@ it('sends one email when an incident opens, however long it stays open', functio
 
 it('sends one recovery email when the service comes back', function () {
     Notification::fake();
-    User::factory()->create();
+    User::factory()->create(['wants_incident_mail' => true]);
 
     play($this->service, [
         ServiceState::Down, ServiceState::Down, ServiceState::Down,
@@ -229,7 +232,7 @@ it('sends one recovery email when the service comes back', function () {
 
 it('sends a further email when degraded escalates to down, but not for a repeat at the same severity', function () {
     Notification::fake();
-    User::factory()->create();
+    User::factory()->create(['wants_incident_mail' => true]);
 
     play($this->service, [
         ServiceState::Degraded, ServiceState::Degraded, ServiceState::Degraded,
@@ -242,7 +245,7 @@ it('sends a further email when degraded escalates to down, but not for a repeat 
 });
 
 it('says nothing when a paused service closes its incident', function () {
-    User::factory()->create();
+    User::factory()->create(['wants_incident_mail' => true]);
 
     play($this->service, [ServiceState::Down, ServiceState::Down]);
 
@@ -259,7 +262,7 @@ it('says nothing when a paused service closes its incident', function () {
 
 it('describes the outage in the mail it sends', function () {
     Notification::fake();
-    $user = User::factory()->create();
+    $user = User::factory()->create(['wants_incident_mail' => true]);
 
     play($this->service, [ServiceState::Down, ServiceState::Down]);
 
@@ -273,7 +276,7 @@ it('describes the outage in the mail it sends', function () {
 
 it('reports how long the service was down in the recovery mail', function () {
     Notification::fake();
-    $user = User::factory()->create();
+    $user = User::factory()->create(['wants_incident_mail' => true]);
 
     play($this->service, [
         ServiceState::Down, ServiceState::Down, ServiceState::Down, ServiceState::Up, ServiceState::Up,
