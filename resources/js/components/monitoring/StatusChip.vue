@@ -23,6 +23,8 @@ const classes = computed(() => {
 
     return {
         up: 'text-status-up bg-status-up/10 border-status-up/25',
+        maintenance:
+            'text-status-maintenance bg-status-maintenance/10 border-status-maintenance/30',
         degraded:
             'text-status-degraded bg-status-degraded/10 border-status-degraded/30',
         down: 'text-status-down bg-status-down/10 border-status-down/30',

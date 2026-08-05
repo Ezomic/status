@@ -21,7 +21,7 @@ class BuildUptimeStrip
      * over roughly a million rows. A short cache is what keeps it off the page-load path;
      * a rollup table would be a second source of truth for no additional benefit.
      *
-     * @return array<int, array<int, array{date: string, state: string, uptime: float|null}>>
+     * @return array<int, array<int, array{date: string, state: string, uptime: float|null, maintenance: bool}>>
      */
     public function handle(int $days = 60): array
     {
@@ -32,7 +32,7 @@ class BuildUptimeStrip
         );
     }
 
-    /** @return array<int, array<int, array{date: string, state: string, uptime: float|null}>> */
+    /** @return array<int, array<int, array{date: string, state: string, uptime: float|null, maintenance: bool}>> */
     private function build(int $days): array
     {
         $since = CarbonImmutable::today()->subDays($days - 1);
@@ -43,6 +43,7 @@ class BuildUptimeStrip
             ->selectRaw('count(*) as total')
             ->selectRaw('sum(case when state = ? then 1 else 0 end) as down_count', [ServiceState::Down->value])
             ->selectRaw('sum(case when state = ? then 1 else 0 end) as degraded_count', [ServiceState::Degraded->value])
+            ->selectRaw('sum(case when state = ? then 1 else 0 end) as maintenance_count', [ServiceState::Maintenance->value])
             ->where('checked_at', '>=', $since)
             ->groupBy('service_id', 'day')
             ->get()
@@ -65,27 +66,43 @@ class BuildUptimeStrip
         return $strips;
     }
 
-    /** @return array{date: string, state: string, uptime: float|null} */
+    /** @return array{date: string, state: string, uptime: float|null, maintenance: bool} */
     private function slot(string $date, ?Model $row): array
     {
         if ($row === null) {
-            return ['date' => $date, 'state' => 'none', 'uptime' => null];
+            return ['date' => $date, 'state' => 'none', 'uptime' => null, 'maintenance' => false];
         }
 
         $total = $this->toInt($row->getAttribute('total'));
         $down = $this->toInt($row->getAttribute('down_count'));
         $degraded = $this->toInt($row->getAttribute('degraded_count'));
+        $maintenance = $this->toInt($row->getAttribute('maintenance_count'));
 
+        // Maintenance leaves the ratio entirely rather than counting either way:
+        // availability is not measurable while a service is deliberately offline,
+        // and counting it as up would let a long deploy inflate the number.
+        $measured = $total - $maintenance;
+
+        // Worst thing seen that day wins. Maintenance only claims the slot when the
+        // whole day was maintenance: a three minute deploy should not repaint an
+        // otherwise healthy day, so a mixed day reads as up and says "some
+        // maintenance" in the tooltip instead.
         $state = match (true) {
             $down > 0 => ServiceState::Down->value,
             $degraded > 0 => ServiceState::Degraded->value,
+            $measured === 0 => ServiceState::Maintenance->value,
             default => ServiceState::Up->value,
         };
 
         return [
             'date' => $date,
             'state' => $state,
-            'uptime' => round((($total - $down) / $total) * 100, 2),
+            'uptime' => $measured > 0
+                ? round((($measured - $down) / $measured) * 100, 2)
+                : null,
+            // Kept separate from $state so a mixed day can read as up and still say a
+            // deploy happened, rather than the deploy hiding the day's real story.
+            'maintenance' => $maintenance > 0,
         ];
     }
 

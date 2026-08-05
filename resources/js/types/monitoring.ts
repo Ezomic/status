@@ -1,4 +1,5 @@
-export type StatusState = 'up' | 'degraded' | 'down' | 'unknown';
+export type StatusState =
+    'up' | 'maintenance' | 'degraded' | 'down' | 'unknown';
 
 export type StripState = StatusState | 'none';
 
@@ -6,6 +7,7 @@ export type StripSlot = {
     date: string;
     state: StripState;
     uptime: number | null;
+    maintenance: boolean;
 };
 
 export type ServiceSummary = {

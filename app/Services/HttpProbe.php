@@ -71,7 +71,13 @@ class HttpProbe
             : 0;
 
         if ($response instanceof Response) {
-            return new ProbeResult($response->status(), $responseTimeMs);
+            $retryAfter = $response->header('Retry-After');
+
+            return new ProbeResult(
+                $response->status(),
+                $responseTimeMs,
+                retryAfter: $retryAfter === '' ? null : $retryAfter,
+            );
         }
 
         if ($response instanceof Throwable) {
