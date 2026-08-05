@@ -13,6 +13,7 @@ use App\Http\Requests\ServiceRequest;
 use App\Models\Check;
 use App\Models\Incident;
 use App\Models\Service;
+use App\Services\CertificateInspector;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -70,6 +71,11 @@ class ServiceController extends Controller
                 'interval_seconds' => $service->interval_seconds,
                 'timeout_seconds' => $service->timeout_seconds,
                 'degraded_threshold_ms' => $service->degraded_threshold_ms,
+                'uses_tls' => $service->usesTls(),
+                'certificate_expires_at' => $service->certificate_expires_at?->toIso8601String(),
+                'certificate_checked_at' => $service->certificate_checked_at?->toIso8601String(),
+                'certificate_days_remaining' => $service->certificateDaysRemaining(CarbonImmutable::now()),
+                'certificate_warn_within_days' => CertificateInspector::WARN_WITHIN_DAYS,
                 'strip' => $buildUptimeStrip->handle()[$service->id] ?? [],
             ],
             'uptime' => [
