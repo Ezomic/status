@@ -8,17 +8,28 @@ const props = withDefaults(
         state: StatusState;
         label?: string;
         paused?: boolean;
+        stale?: boolean;
     }>(),
-    { label: undefined, paused: false },
+    { label: undefined, paused: false, stale: false },
 );
 
-const text = computed(() =>
-    props.paused ? 'Paused' : (props.label ?? stateLabel(props.state)),
-);
+// Paused outranks stale: a service nobody is checking on purpose is not a warning.
+// Stale outranks the state itself, because the state is what has gone unreliable.
+const text = computed(() => {
+    if (props.paused) {
+        return 'Paused';
+    }
+
+    return props.stale ? 'Stale' : (props.label ?? stateLabel(props.state));
+});
 
 const classes = computed(() => {
     if (props.paused) {
         return 'text-muted-foreground bg-muted border-border';
+    }
+
+    if (props.stale) {
+        return 'text-status-stale bg-status-stale/10 border-status-stale/30';
     }
 
     return {

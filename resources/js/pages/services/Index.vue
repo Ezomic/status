@@ -1,22 +1,23 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { TriangleAlert } from '@lucide/vue';
+import { ClockAlert, TriangleAlert } from '@lucide/vue';
 import { computed } from 'vue';
 import ServiceDialog from '@/components/monitoring/ServiceDialog.vue';
 import Sparkline from '@/components/monitoring/Sparkline.vue';
 import StatusChip from '@/components/monitoring/StatusChip.vue';
 import UptimeStrip from '@/components/monitoring/UptimeStrip.vue';
 import { Button } from '@/components/ui/button';
-import { formatMs } from '@/lib/monitoring';
+import { formatMs, formatTime } from '@/lib/monitoring';
 import {
     index as servicesIndex,
     show as servicesShow,
 } from '@/routes/services';
-import type { IncidentRow, ServiceRow } from '@/types/monitoring';
+import type { Freshness, IncidentRow, ServiceRow } from '@/types/monitoring';
 
 const props = defineProps<{
     services: ServiceRow[];
     openIncidents: IncidentRow[];
+    freshness: Freshness;
 }>();
 
 defineOptions({
@@ -28,6 +29,22 @@ defineOptions({
 const watched = computed(
     () => props.services.filter((service) => service.is_active).length,
 );
+
+const staleWarning = computed(() => {
+    if (props.freshness.stalled) {
+        return props.freshness.last_check_at === null
+            ? 'Nothing has been checked yet. The scheduler does not appear to be running.'
+            : `Nothing has been checked since ${formatTime(props.freshness.last_check_at)}. The scheduler has stopped, so every state below is the last one recorded rather than the current one.`;
+    }
+
+    if (props.freshness.stale_count > 0) {
+        return props.freshness.stale_count === 1
+            ? '1 service is overdue for a check, so its state may be out of date.'
+            : `${props.freshness.stale_count} services are overdue for a check, so their states may be out of date.`;
+    }
+
+    return null;
+});
 
 const verdict = computed(() => {
     if (props.openIncidents.length === 0) {
@@ -69,6 +86,27 @@ const verdict = computed(() => {
             </div>
 
             <ServiceDialog />
+        </div>
+
+        <div
+            v-if="staleWarning"
+            class="flex flex-wrap items-center gap-4 rounded-lg border border-l-3 border-l-status-stale bg-card p-4"
+        >
+            <span
+                class="grid size-9 shrink-0 place-items-center rounded-full bg-status-stale/10 text-status-stale"
+            >
+                <ClockAlert class="size-4.5" />
+            </span>
+            <div class="min-w-40 flex-1">
+                <strong class="block text-sm font-semibold">{{
+                    freshness.stalled
+                        ? 'Checks are not running'
+                        : 'Some checks are overdue'
+                }}</strong>
+                <span class="text-sm text-muted-foreground">{{
+                    staleWarning
+                }}</span>
+            </div>
         </div>
 
         <div
@@ -153,6 +191,7 @@ const verdict = computed(() => {
                     <StatusChip
                         :state="service.state"
                         :paused="!service.is_active"
+                        :stale="service.is_stale"
                     />
                 </span>
 

@@ -95,8 +95,45 @@ class PublicStatusEndpointTest extends TestCase
         $this->assertStringNotContainsString('secret-host.internal', $response->getContent());
         $this->assertStringNotContainsString('137', $response->getContent());
         $this->assertSame(
-            ['slug', 'name', 'state', 'last_checked_at'],
+            ['slug', 'name', 'state', 'stale', 'last_checked_at'],
             array_keys($response->json('services.0')),
         );
+    }
+
+    /**
+     * STAT-19: if the runner stopped, a consumer polling this must not be handed a
+     * frozen green. The honest answer is that we no longer know.
+     */
+    public function test_it_does_not_serve_a_frozen_state_as_current(): void
+    {
+        Service::factory()->create([
+            'name' => 'Portal',
+            'is_active' => true,
+            'is_public' => true,
+            'current_state' => ServiceState::Up,
+            'interval_seconds' => 60,
+            'last_checked_at' => now()->subHour(),
+        ]);
+
+        $this->getJson(route('api.status'), ['Authorization' => 'Bearer secret-token'])
+            ->assertOk()
+            ->assertJsonPath('services.0.state', 'unknown')
+            ->assertJsonPath('services.0.stale', true);
+    }
+
+    public function test_it_serves_a_fresh_state_untouched(): void
+    {
+        Service::factory()->create([
+            'is_active' => true,
+            'is_public' => true,
+            'current_state' => ServiceState::Degraded,
+            'interval_seconds' => 60,
+            'last_checked_at' => now()->subSeconds(30),
+        ]);
+
+        $this->getJson(route('api.status'), ['Authorization' => 'Bearer secret-token'])
+            ->assertOk()
+            ->assertJsonPath('services.0.state', 'degraded')
+            ->assertJsonPath('services.0.stale', false);
     }
 }

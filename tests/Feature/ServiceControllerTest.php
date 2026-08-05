@@ -282,3 +282,32 @@ it('surfaces the expected content on the service page', function () {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('service.expected_body', 'Sign in'));
 });
+
+it('flags a service whose checks have gone overdue', function () {
+    Service::factory()->create([
+        'interval_seconds' => 60,
+        'last_checked_at' => CarbonImmutable::now()->subHour(),
+        'current_state' => ServiceState::Up,
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('services.index'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('services.0.is_stale', true)
+            ->where('freshness.stalled', true)
+            ->where('freshness.stale_count', 1));
+});
+
+it('reports nothing stale when every service was just checked', function () {
+    Service::factory()->count(2)->create([
+        'interval_seconds' => 60,
+        'last_checked_at' => CarbonImmutable::now()->subSeconds(20),
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('services.index'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('services.0.is_stale', false)
+            ->where('freshness.stalled', false)
+            ->where('freshness.stale_count', 0));
+});

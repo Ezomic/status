@@ -45,6 +45,7 @@
     --color-status-degraded: var(--status-degraded);
     --color-status-down: var(--status-down);
     --color-status-maintenance: var(--status-maintenance);
+    --color-status-stale: var(--status-stale);
     --color-status-idle: var(--status-idle);
 
     --color-border: var(--border);
@@ -116,6 +117,7 @@
     /* Colour is reserved for state: the chrome stays neutral. */
     --status-up: hsl(152 46% 34%);
     --status-maintenance: hsl(212 58% 45%);
+    --status-stale: hsl(280 42% 47%);
     --status-degraded: hsl(38 78% 36%);
     --status-down: hsl(4 62% 48%);
     --status-idle: hsl(215 14% 71%);
@@ -159,6 +161,7 @@
 
     --status-up: hsl(150 44% 44%);
     --status-maintenance: hsl(212 62% 58%);
+    --status-stale: hsl(280 48% 63%);
     --status-degraded: hsl(40 66% 53%);
     --status-down: hsl(5 63% 58%);
     --status-idle: hsl(215 14% 40%);

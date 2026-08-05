@@ -20,6 +20,7 @@ export type ServiceSummary = {
     state_label: string;
     is_active: boolean;
     is_public: boolean;
+    is_stale: boolean;
     last_response_time_ms: number | null;
     last_checked_at: string | null;
 };
@@ -36,6 +37,12 @@ export type ServiceDetail = ServiceSummary & {
     timeout_seconds: number;
     degraded_threshold_ms: number;
     strip: StripSlot[];
+};
+
+export type Freshness = {
+    stalled: boolean;
+    stale_count: number;
+    last_check_at: string | null;
 };
 
 export type IncidentRow = {
