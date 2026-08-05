@@ -1,15 +1,11 @@
 <?php
 
 use App\Http\Controllers\IncidentController;
-use App\Http\Controllers\PublicStatusController;
 use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
-
-// Machine-readable status for other apps (token-guarded, leak-safe). ID-13.
-Route::get('api/status', [PublicStatusController::class, 'index'])->name('api.status');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', fn () => Inertia::render('Dashboard'))->name('dashboard');

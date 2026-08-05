@@ -6,6 +6,7 @@ use App\Enums\ServiceState;
 use App\Models\Service;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Symfony\Component\HttpFoundation\Cookie;
 use Tests\TestCase;
 
 class PublicStatusEndpointTest extends TestCase
@@ -17,6 +18,38 @@ class PublicStatusEndpointTest extends TestCase
         parent::setUp();
         config()->set('services.status_endpoint.token', 'secret-token');
         Cache::flush();
+    }
+
+    /**
+     * The point of moving this off the web group (STAT-20): a machine poll must not
+     * start a session, because with SESSION_DRIVER=database every one of them writes
+     * a row into the same SQLite file the scheduler writes checks into.
+     */
+    public function test_it_does_not_start_a_session(): void
+    {
+        $response = $this->getJson(route('api.status'), ['Authorization' => 'Bearer secret-token'])
+            ->assertOk();
+
+        $names = array_map(
+            fn (Cookie $cookie): string => $cookie->getName(),
+            $response->headers->getCookies(),
+        );
+
+        $this->assertNotContains(config('session.cookie'), $names);
+        $this->assertSame([], $names);
+    }
+
+    public function test_it_throttles_repeated_attempts(): void
+    {
+        // One over the limit: the first 30 are served, the 31st is refused.
+        for ($i = 0; $i < 30; $i++) {
+            $this->getJson(route('api.status'), ['Authorization' => 'Bearer nope'])
+                ->assertUnauthorized();
+        }
+
+        $this->getJson(route('api.status'), ['Authorization' => 'Bearer nope'])
+            ->assertStatus(429)
+            ->assertJsonStructure(['message']);
     }
 
     public function test_it_rejects_a_missing_or_wrong_token(): void
