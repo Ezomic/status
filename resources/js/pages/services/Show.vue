@@ -126,7 +126,11 @@ function remove() {
         </div>
 
         <div>
-            <StatusChip :state="service.state" :paused="!service.is_active" />
+            <StatusChip
+                :state="service.state"
+                :paused="!service.is_active"
+                :stale="service.is_stale"
+            />
         </div>
 
         <dl class="grid grid-cols-2 gap-3 lg:grid-cols-4">

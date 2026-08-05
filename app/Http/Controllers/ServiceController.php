@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Actions\Monitoring\AssessFreshness;
 use App\Actions\Monitoring\BuildResponseSparklines;
 use App\Actions\Monitoring\BuildUptimeStrip;
 use App\Actions\Services\SaveService;
@@ -19,13 +20,17 @@ use Inertia\Response;
 
 class ServiceController extends Controller
 {
-    public function index(BuildUptimeStrip $buildUptimeStrip, BuildResponseSparklines $buildSparklines): Response
-    {
+    public function index(
+        BuildUptimeStrip $buildUptimeStrip,
+        BuildResponseSparklines $buildSparklines,
+        AssessFreshness $assessFreshness,
+    ): Response {
         $services = Service::query()->orderBy('name')->get();
         $strips = $buildUptimeStrip->handle();
         $sparklines = $buildSparklines->handle();
 
         return Inertia::render('services/Index', [
+            'freshness' => $assessFreshness->handle($services, CarbonImmutable::now()),
             'services' => $services->map(fn (Service $service): array => [
                 ...$this->summarise($service),
                 'strip' => $strips[$service->id] ?? [],
@@ -130,6 +135,7 @@ class ServiceController extends Controller
             'state_label' => $service->current_state->label(),
             'is_active' => $service->is_active,
             'is_public' => $service->is_public,
+            'is_stale' => $service->isStaleAt(CarbonImmutable::now()),
             // 0 only ever means the connection never opened, so there is no time to show.
             'last_response_time_ms' => $service->last_response_time_ms ?: null,
             'last_checked_at' => $service->last_checked_at?->toIso8601String(),

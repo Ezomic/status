@@ -108,6 +108,36 @@ class Service extends Model
         return $this->incidents()->whereNull('resolved_at')->first();
     }
 
+    /**
+     * How long a service may go unchecked before its state stops being trustworthy.
+     *
+     * Derived from the service's own interval rather than a global constant, but floored
+     * at the scheduler's tick: cron runs schedule:run once a minute, so a 30 second
+     * interval is checked every 60 seconds in practice and would otherwise look stale
+     * while behaving perfectly. Three ticks leaves room for one slow or skipped run
+     * (monitor:run uses withoutOverlapping) before crying wolf.
+     */
+    public function staleAfterSeconds(): int
+    {
+        return max($this->interval_seconds, 60) * 3;
+    }
+
+    /**
+     * Stale means "nobody has looked recently", which is not the same as down (STAT-19).
+     * An unreachable host still gets checked, and that check records a failure; a service
+     * only goes stale when the runner itself stopped.
+     */
+    public function isStaleAt(CarbonImmutable $now): bool
+    {
+        // A paused service is not expected to be checked, and one that has never been
+        // checked already reports Unknown rather than a state that could go stale.
+        if (! $this->is_active || $this->last_checked_at === null) {
+            return false;
+        }
+
+        return $this->last_checked_at->addSeconds($this->staleAfterSeconds())->lessThan($now);
+    }
+
     public function host(): string
     {
         return (string) preg_replace('#^www\.#', '', (string) parse_url($this->url, PHP_URL_HOST));

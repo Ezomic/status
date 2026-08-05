@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\ServiceState;
 use App\Models\Service;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -25,16 +27,28 @@ class PublicStatusController extends Controller
         }
 
         $services = Cache::remember('public-status', now()->addSeconds(30), function (): array {
+            $now = CarbonImmutable::now();
+
             return Service::query()
                 ->public()
                 ->orderBy('name')
                 ->get()
-                ->map(fn (Service $service): array => [
-                    'slug' => $service->slug,
-                    'name' => $service->name,
-                    'state' => $service->current_state->value,
-                    'last_checked_at' => $service->last_checked_at?->toIso8601String(),
-                ])
+                ->map(function (Service $service) use ($now): array {
+                    $stale = $service->isStaleAt($now);
+
+                    return [
+                        'slug' => $service->slug,
+                        'name' => $service->name,
+                        // A frozen state must not be served as current (STAT-19). If the
+                        // runner stopped, the honest answer is that we do not know, so
+                        // consumers cannot be fooled into rendering a stale green.
+                        'state' => $stale
+                            ? ServiceState::Unknown->value
+                            : $service->current_state->value,
+                        'stale' => $stale,
+                        'last_checked_at' => $service->last_checked_at?->toIso8601String(),
+                    ];
+                })
                 ->all();
         });
 
