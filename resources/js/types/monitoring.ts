@@ -50,6 +50,36 @@ export type Freshness = {
     last_check_at: string | null;
 };
 
+export type DashboardCounts = {
+    total: number;
+    watched: number;
+    paused: number;
+    up: number;
+    degraded: number;
+    down: number;
+    maintenance: number;
+    unknown: number;
+    stale: number;
+};
+
+export type DashboardVerdict = {
+    tone: StatusState | 'stale';
+    headline: string;
+    detail: string;
+};
+
+export type AttentionRow = {
+    id: number;
+    name: string;
+    host: string;
+    state: StatusState;
+    state_label: string;
+    is_stale: boolean;
+    last_response_time_ms: number | null;
+    strip: StripSlot[];
+    sparkline: number[];
+};
+
 export type IncidentRow = {
     id: number;
     service?: string;
