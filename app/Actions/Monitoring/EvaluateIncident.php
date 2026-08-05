@@ -24,6 +24,15 @@ class EvaluateIncident
      */
     public function handle(Service $service, Check $check): ?Incident
     {
+        // A maintenance window is neutral: it neither opens nor escalates nor resolves
+        // anything (STAT-18). Returning here is what stops a deploy from being reported
+        // as an outage, and a deploy that happens mid-outage from being reported as a
+        // recovery. previousCheck() skips maintenance for the same reason, so the
+        // confirmation pair either side of a deploy is built from real observations.
+        if ($check->state === ServiceState::Maintenance) {
+            return $service->openIncident();
+        }
+
         $previous = $this->previousCheck($service, $check);
         $open = $service->openIncident();
 
@@ -85,11 +94,16 @@ class EvaluateIncident
     /**
      * Ordered by id, never checked_at: every check in a run shares one timestamp, so
      * ordering by checked_at is nondeterministic under a frozen clock.
+     *
+     * Maintenance checks are skipped so a deploy cannot break the two-check
+     * confirmation: without this, "down, deploy, down" would open an incident dated
+     * to the deploy, and "down, deploy, up, up" would resolve off the wrong check.
      */
     private function previousCheck(Service $service, Check $check): ?Check
     {
         return $service->checks()
             ->where('id', '<', $check->id)
+            ->where('state', '!=', ServiceState::Maintenance)
             ->orderByDesc('id')
             ->first();
     }

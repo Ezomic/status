@@ -65,3 +65,24 @@ it('maps pooled responses back to the correct service', function () {
 it('returns nothing when there is nothing to probe', function () {
     expect(app(HttpProbe::class)->probeMany(collect()))->toBe([]);
 });
+
+it('captures the Retry-After header so a deploy can be told apart from an outage', function () {
+    // Exactly what `artisan down --retry=15` serves.
+    Http::fake(['*deploying.test*' => Http::response('Service Unavailable', 503, ['Retry-After' => '15'])]);
+
+    $service = Service::factory()->create(['url' => 'https://deploying.test']);
+
+    $result = app(HttpProbe::class)->probe($service);
+
+    expect($result->statusCode)->toBe(503)
+        ->and($result->retryAfter)->toBe('15')
+        ->and($result->error)->toBeNull();
+});
+
+it('leaves retryAfter null when the response does not carry the header', function () {
+    Http::fake(['*broken.test*' => Http::response('nope', 503)]);
+
+    $service = Service::factory()->create(['url' => 'https://broken.test']);
+
+    expect(app(HttpProbe::class)->probe($service)->retryAfter)->toBeNull();
+});

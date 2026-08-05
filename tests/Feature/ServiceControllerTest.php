@@ -192,3 +192,60 @@ it('keeps guests out', function () {
 
     expect(Service::count())->toBe(1);
 });
+
+it('shows a maintenance day on the strip without counting it as downtime', function () {
+    $service = Service::factory()->create(['current_state' => ServiceState::Maintenance]);
+
+    // A day with maintenance and nothing else wrong reads as maintenance, and has no
+    // measurable uptime at all (STAT-18).
+    Check::factory()->for($service)->count(3)->create([
+        'state' => ServiceState::Maintenance,
+        'status_code' => 503,
+        'checked_at' => now(),
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('services.show', $service))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('service.state_label', 'Maintenance')
+            ->where('uptime.day', null));
+});
+
+it('keeps maintenance out of the uptime ratio', function () {
+    $service = Service::factory()->create();
+
+    // 1 down and 1 up out of 2 measurable checks is 50%, not 25% of four.
+    Check::factory()->for($service)->create(['state' => ServiceState::Up, 'checked_at' => now()]);
+    Check::factory()->for($service)->create(['state' => ServiceState::Down, 'status_code' => 500, 'checked_at' => now()]);
+    Check::factory()->for($service)->count(2)->create([
+        'state' => ServiceState::Maintenance,
+        'status_code' => 503,
+        'checked_at' => now(),
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('services.show', $service))
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('uptime.day', 50));
+});
+
+it('does not let a short deploy repaint an otherwise healthy day on the strip', function () {
+    $service = Service::factory()->create(['current_state' => ServiceState::Up]);
+
+    Check::factory()->for($service)->count(20)->create(['state' => ServiceState::Up, 'checked_at' => now()]);
+    Check::factory()->for($service)->count(3)->create([
+        'state' => ServiceState::Maintenance,
+        'status_code' => 503,
+        'checked_at' => now(),
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('services.show', $service))
+        ->assertInertia(function (AssertableInertia $page) {
+            $today = collect($page->toArray()['props']['service']['strip'])->last();
+
+            // Reads as up, but still flags that a deploy happened.
+            expect($today['state'])->toBe('up')
+                ->and($today['maintenance'])->toBeTrue()
+                ->and($today['uptime'])->toEqual(100);
+        });
+});

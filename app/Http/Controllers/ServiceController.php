@@ -147,11 +147,19 @@ class ServiceController extends Controller
         ];
     }
 
+    /**
+     * Maintenance checks leave the ratio rather than counting either way: availability
+     * is not measurable while a service is deliberately offline, and counting a window
+     * as up would let a long deploy inflate the number (STAT-18).
+     */
     private function uptimeSince(Service $service, CarbonImmutable $since): ?float
     {
-        $total = $service->checks()->where('checked_at', '>=', $since)->count();
+        $measured = $service->checks()
+            ->where('checked_at', '>=', $since)
+            ->where('state', '!=', ServiceState::Maintenance)
+            ->count();
 
-        if ($total === 0) {
+        if ($measured === 0) {
             return null;
         }
 
@@ -160,6 +168,6 @@ class ServiceController extends Controller
             ->where('state', ServiceState::Down)
             ->count();
 
-        return round((($total - $down) / $total) * 100, 2);
+        return round((($measured - $down) / $measured) * 100, 2);
     }
 }

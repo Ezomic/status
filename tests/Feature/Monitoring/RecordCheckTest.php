@@ -48,3 +48,17 @@ it('stores a null status code and the error when the probe never got a response'
         ->and($check->ok)->toBeFalse()
         ->and($check->error)->toBe('Operation timed out');
 });
+
+it('records a maintenance check without calling it an outage', function () {
+    $service = Service::factory()->create(['expected_status_code' => 200]);
+
+    $check = app(RecordCheck::class)->handle(
+        $service,
+        new ProbeResult(503, 40, retryAfter: '15'),
+        CarbonImmutable::now(),
+    );
+
+    expect($check->state)->toBe(ServiceState::Maintenance)
+        ->and($check->ok)->toBeTrue()
+        ->and($service->refresh()->current_state)->toBe(ServiceState::Maintenance);
+});

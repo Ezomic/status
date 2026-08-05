@@ -28,7 +28,11 @@ function play(Service $service, array $states): Service
         $check = Check::factory()->for($service)->create([
             'state' => $state,
             'ok' => $state !== ServiceState::Down,
-            'status_code' => $state === ServiceState::Down ? 500 : 200,
+            'status_code' => match ($state) {
+                ServiceState::Down => 500,
+                ServiceState::Maintenance => 503,
+                default => 200,
+            },
             'response_time_ms' => $state === ServiceState::Degraded ? 2400 : 120,
             'checked_at' => $at->addMinutes($index),
         ]);
@@ -280,4 +284,100 @@ it('reports how long the service was down in the recovery mail', function () {
         ->first(fn (string $subject): bool => str_contains($subject, 'Resolved'));
 
     expect($resolved)->toContain('is back up');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Maintenance windows (STAT-18)
+|--------------------------------------------------------------------------
+|
+| Every app on the droplet deploys with `artisan down --retry`, which serves 503
+| with a Retry-After header for the length of the deploy. A planned deploy must
+| not read as an outage, and must not read as a recovery either.
+|
+*/
+
+it('does not open an incident for a deploy, however long it runs', function () {
+    Notification::fake();
+
+    play($this->service, [
+        ServiceState::Up,
+        ServiceState::Maintenance,
+        ServiceState::Maintenance,
+        ServiceState::Maintenance,
+        ServiceState::Maintenance,
+        ServiceState::Up,
+    ]);
+
+    expect(Incident::count())->toBe(0);
+    Notification::assertNothingSent();
+});
+
+it('still opens an incident for a bare 503 with no Retry-After', function () {
+    // classify() sends that down the Down path, so this is the control case: the
+    // maintenance exemption must not have widened into "503 is always fine".
+    play($this->service, [ServiceState::Up, ServiceState::Down, ServiceState::Down]);
+
+    expect(Incident::count())->toBe(1)
+        ->and(Incident::first()->severity)->toBe(ServiceState::Down);
+});
+
+it('does not escalate an open incident while a deploy runs', function () {
+    play($this->service, [ServiceState::Up, ServiceState::Degraded, ServiceState::Degraded]);
+
+    $incident = Incident::sole();
+    expect($incident->severity)->toBe(ServiceState::Degraded);
+
+    play($this->service, [ServiceState::Maintenance, ServiceState::Maintenance]);
+
+    expect($incident->refresh()->severity)->toBe(ServiceState::Degraded)
+        ->and($incident->resolved_at)->toBeNull();
+});
+
+it('does not resolve an open incident when a deploy happens mid-outage', function () {
+    play($this->service, [ServiceState::Up, ServiceState::Down, ServiceState::Down]);
+
+    $incident = Incident::sole();
+
+    play($this->service, [ServiceState::Maintenance, ServiceState::Maintenance]);
+
+    expect($incident->refresh()->resolved_at)->toBeNull();
+});
+
+it('resolves off the real recovery, not the deploy that preceded it', function () {
+    play($this->service, [ServiceState::Up, ServiceState::Down, ServiceState::Down]);
+
+    $incident = Incident::sole();
+    expect($incident->resolved_at)->toBeNull();
+
+    // Deploy, then two genuine passes. The recovery is dated to the first pass,
+    // which means previousCheck() has to have skipped the maintenance rows.
+    play($this->service, [
+        ServiceState::Maintenance,
+        ServiceState::Up,
+        ServiceState::Up,
+    ]);
+
+    $deploy = Check::query()->where('state', ServiceState::Maintenance)->sole();
+    $firstPassAfterDeploy = Check::query()
+        ->where('state', ServiceState::Up)
+        ->where('id', '>', $deploy->id)
+        ->orderBy('id')
+        ->first();
+
+    expect($incident->refresh()->resolved_at)->not->toBeNull()
+        ->and($incident->resolved_at->toDateTimeString())
+        ->toBe($firstPassAfterDeploy->checked_at->toDateTimeString());
+});
+
+it('opens an incident when a service is down either side of a deploy', function () {
+    // The deploy is neutral, so the two real failures still confirm each other.
+    play($this->service, [
+        ServiceState::Up,
+        ServiceState::Down,
+        ServiceState::Maintenance,
+        ServiceState::Down,
+    ]);
+
+    expect(Incident::count())->toBe(1);
 });

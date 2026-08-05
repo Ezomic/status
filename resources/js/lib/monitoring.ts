@@ -2,6 +2,7 @@ import type { StatusState, StripState } from '@/types/monitoring';
 
 const STATE_TEXT: Record<StripState, string> = {
     up: 'text-status-up',
+    maintenance: 'text-status-maintenance',
     degraded: 'text-status-degraded',
     down: 'text-status-down',
     unknown: 'text-status-idle',
@@ -10,6 +11,7 @@ const STATE_TEXT: Record<StripState, string> = {
 
 const STATE_BG: Record<StripState, string> = {
     up: 'bg-status-up',
+    maintenance: 'bg-status-maintenance',
     degraded: 'bg-status-degraded',
     down: 'bg-status-down',
     unknown: 'bg-status-idle',
@@ -27,6 +29,7 @@ export function stateBg(state: StripState): string {
 export function stateLabel(state: StatusState): string {
     return {
         up: 'Up',
+        maintenance: 'Maintenance',
         degraded: 'Degraded',
         down: 'Down',
         unknown: 'Not checked',

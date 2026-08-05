@@ -5,11 +5,21 @@ import type { StripSlot } from '@/types/monitoring';
 defineProps<{ slots: StripSlot[] }>();
 
 function title(slot: StripSlot): string {
-    if (slot.uptime === null) {
+    if (slot.state === 'none') {
         return `${slot.date} - not checked`;
     }
 
-    return `${slot.date} - ${slot.uptime}% up`;
+    // A day spent entirely in maintenance has no measurable uptime, so it reports the
+    // window rather than a percentage.
+    if (slot.uptime === null) {
+        return `${slot.date} - maintenance`;
+    }
+
+    // A day with a deploy in it still reads as up, so the maintenance is worth
+    // mentioning: it explains a dip that is not a fault.
+    const suffix = slot.maintenance ? ' up, some maintenance' : ' up';
+
+    return `${slot.date} - ${slot.uptime}%${suffix}`;
 }
 </script>
 
