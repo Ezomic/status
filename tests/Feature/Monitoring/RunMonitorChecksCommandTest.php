@@ -138,3 +138,39 @@ it('reports that nothing is due when every service was just checked', function (
 
     $this->artisan('monitor:run')->expectsOutputToContain('No services are due.')->assertSuccessful();
 });
+
+it('opens an incident with a readable reason when an app answers 200 but is broken', function () {
+    // The case the ticket exists for: the web server is fine, the app is not.
+    Http::fake(['*broken.test*' => Http::response('Whoops, something went wrong', 200)]);
+
+    $service = Service::factory()->create([
+        'url' => 'https://broken.test',
+        'expected_status_code' => 200,
+        'expected_body' => 'Sign in',
+        'last_checked_at' => null,
+    ]);
+
+    $this->artisan('monitor:run --force')->assertSuccessful();
+    $this->artisan('monitor:run --force')->assertSuccessful();
+
+    expect($service->checks()->pluck('state')->all())
+        ->toBe([ServiceState::Down, ServiceState::Down])
+        ->and(Incident::sole()->reason)->toBe('Responded without the expected content');
+});
+
+it('leaves a healthy app alone when its content is present', function () {
+    Http::fake(['*app.test*' => Http::response('<h1>Sign in</h1>', 200)]);
+
+    $service = Service::factory()->create([
+        'url' => 'https://app.test',
+        'expected_status_code' => 200,
+        'expected_body' => 'Sign in',
+        'last_checked_at' => null,
+    ]);
+
+    $this->artisan('monitor:run --force')->assertSuccessful();
+    $this->artisan('monitor:run --force')->assertSuccessful();
+
+    expect($service->refresh()->current_state)->toBe(ServiceState::Up)
+        ->and(Incident::count())->toBe(0);
+});

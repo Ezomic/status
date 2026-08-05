@@ -86,3 +86,33 @@ it('leaves retryAfter null when the response does not carry the header', functio
 
     expect(app(HttpProbe::class)->probe($service)->retryAfter)->toBeNull();
 });
+
+it('reports the expected content as present when the body contains it', function () {
+    Http::fake(['*app.test*' => Http::response('<html><body>Sign in to Tracker</body></html>', 200)]);
+
+    $service = Service::factory()->create(['url' => 'https://app.test', 'expected_body' => 'Sign in']);
+
+    expect(app(HttpProbe::class)->probe($service)->bodyMatched)->toBeTrue();
+});
+
+it('reports the expected content as missing when the body does not contain it', function () {
+    // A Laravel app that boots with an unreachable database still answers 200.
+    Http::fake(['*app.test*' => Http::response('<html><body>Server Error</body></html>', 200)]);
+
+    $service = Service::factory()->create(['url' => 'https://app.test', 'expected_body' => 'Sign in']);
+
+    $result = app(HttpProbe::class)->probe($service);
+
+    expect($result->statusCode)->toBe(200)
+        ->and($result->bodyMatched)->toBeFalse();
+});
+
+it('does not run the content assertion when the service opted out', function () {
+    Http::fake(['*app.test*' => Http::response('anything at all', 200)]);
+
+    foreach ([null, ''] as $expected) {
+        $service = Service::factory()->create(['url' => 'https://app.test', 'expected_body' => $expected]);
+
+        expect(app(HttpProbe::class)->probe($service)->bodyMatched)->toBeNull();
+    }
+});

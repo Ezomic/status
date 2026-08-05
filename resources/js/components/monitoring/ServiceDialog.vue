@@ -27,6 +27,7 @@ const form = useForm({
     name: props.service?.name ?? '',
     url: props.service?.url ?? '',
     expected_status_code: props.service?.expected_status_code ?? 200,
+    expected_body: props.service?.expected_body ?? '',
     interval_seconds: props.service?.interval_seconds ?? 60,
     timeout_seconds: props.service?.timeout_seconds ?? 5,
     degraded_threshold_ms: props.service?.degraded_threshold_ms ?? 1000,
@@ -113,6 +114,32 @@ function submit() {
                             class="text-sm text-destructive"
                         >
                             {{ form.errors.url }}
+                        </p>
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="expected_body"
+                            >Expected content
+                            <span class="text-muted-foreground"
+                                >(optional)</span
+                            ></Label
+                        >
+                        <Input
+                            id="expected_body"
+                            v-model="form.expected_body"
+                            placeholder="Sign in"
+                            autocomplete="off"
+                        />
+                        <p class="text-xs text-muted-foreground">
+                            Text the response must contain. Catches an app that
+                            answers but is broken behind the scenes. Leave empty
+                            to check the status code only.
+                        </p>
+                        <p
+                            v-if="form.errors.expected_body"
+                            class="text-sm text-destructive"
+                        >
+                            {{ form.errors.expected_body }}
                         </p>
                     </div>
 

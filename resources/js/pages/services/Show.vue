@@ -99,6 +99,16 @@ function remove() {
                     {{ service.timeout_seconds }}s timeout &middot; slow above
                     {{ formatMs(service.degraded_threshold_ms) }}
                 </p>
+                <p
+                    v-if="service.expected_body"
+                    class="mt-1 text-sm text-muted-foreground"
+                >
+                    Must contain
+                    <code
+                        class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs"
+                        >{{ service.expected_body }}</code
+                    >
+                </p>
             </div>
 
             <div class="flex gap-2">

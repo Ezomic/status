@@ -50,7 +50,7 @@ class HttpProbe
 
         foreach ($services as $service) {
             $response = $responses[(string) $service->id] ?? null;
-            $results[$service->id] = $this->toResult($response, $elapsed->get($service->id));
+            $results[$service->id] = $this->toResult($response, $elapsed->get($service->id), $service);
         }
 
         return $results;
@@ -61,7 +61,7 @@ class HttpProbe
         return $this->probeMany(collect([$service]))[$service->id];
     }
 
-    private function toResult(mixed $response, ?float $transferSeconds): ProbeResult
+    private function toResult(mixed $response, ?float $transferSeconds, Service $service): ProbeResult
     {
         // Guzzle does not fire on_stats when the connection never opens, so a failed
         // probe reports 0. Do not substitute the timeout: a DNS failure resolves in
@@ -77,6 +77,7 @@ class HttpProbe
                 $response->status(),
                 $responseTimeMs,
                 retryAfter: $retryAfter === '' ? null : $retryAfter,
+                bodyMatched: $this->bodyMatches($response, $service),
             );
         }
 
@@ -85,6 +86,21 @@ class HttpProbe
         }
 
         return new ProbeResult(null, $responseTimeMs, 'No response');
+    }
+
+    /**
+     * Null when the service opted out, so classify() can tell "did not run" from "ran
+     * and failed". The body is read here and discarded: only the verdict travels on.
+     */
+    private function bodyMatches(Response $response, Service $service): ?bool
+    {
+        $expected = $service->expected_body;
+
+        if ($expected === null || $expected === '') {
+            return null;
+        }
+
+        return str_contains($response->body(), $expected);
     }
 
     /** Guzzle appends a docs link and the full URL to every cURL error; neither reads well in an incident list. */

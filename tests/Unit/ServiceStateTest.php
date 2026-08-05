@@ -82,3 +82,46 @@ it('treats maintenance as no worse than up so it never escalates an incident', f
         ->and(ServiceState::Maintenance->isWorseThan(ServiceState::Degraded))->toBeFalse()
         ->and(ServiceState::Maintenance->severity())->toBe(ServiceState::Up->severity());
 });
+
+it('classifies a 200 missing the expected content as down', function () {
+    $state = ServiceState::classify(new ProbeResult(200, 80, bodyMatched: false), 200, 1000);
+
+    expect($state)->toBe(ServiceState::Down);
+});
+
+it('classifies a 200 containing the expected content as up', function () {
+    $state = ServiceState::classify(new ProbeResult(200, 80, bodyMatched: true), 200, 1000);
+
+    expect($state)->toBe(ServiceState::Up);
+});
+
+it('leaves a service with no expected content behaving exactly as before', function () {
+    // bodyMatched null means the assertion never ran.
+    expect(ServiceState::classify(new ProbeResult(200, 80), 200, 1000))->toBe(ServiceState::Up)
+        ->and(ServiceState::classify(new ProbeResult(500, 80), 200, 1000))->toBe(ServiceState::Down);
+});
+
+it('reports a wrong status code rather than the missing content', function () {
+    // Both are wrong; the status code is the more useful thing to be told.
+    $state = ServiceState::classify(new ProbeResult(500, 80, bodyMatched: false), 200, 1000);
+
+    expect($state)->toBe(ServiceState::Down);
+});
+
+it('does not fail a maintenance page for lacking the app content', function () {
+    // A deploy's maintenance page will never contain the app's own markup, and that
+    // must not turn a planned window into an outage.
+    $state = ServiceState::classify(
+        new ProbeResult(503, 40, retryAfter: '15', bodyMatched: false),
+        200,
+        1000,
+    );
+
+    expect($state)->toBe(ServiceState::Maintenance);
+});
+
+it('still marks a slow response with matching content as degraded', function () {
+    $state = ServiceState::classify(new ProbeResult(200, 2400, bodyMatched: true), 200, 1000);
+
+    expect($state)->toBe(ServiceState::Degraded);
+});
