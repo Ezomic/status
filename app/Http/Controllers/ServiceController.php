@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Actions\Monitoring\BuildResponseSparklines;
 use App\Actions\Monitoring\BuildUptimeStrip;
 use App\Actions\Services\SaveService;
 use App\Enums\ServiceState;
@@ -18,11 +19,11 @@ use Inertia\Response;
 
 class ServiceController extends Controller
 {
-    public function index(BuildUptimeStrip $buildUptimeStrip): Response
+    public function index(BuildUptimeStrip $buildUptimeStrip, BuildResponseSparklines $buildSparklines): Response
     {
         $services = Service::query()->orderBy('name')->get();
         $strips = $buildUptimeStrip->handle();
-        $sparklines = $this->sparklines();
+        $sparklines = $buildSparklines->handle();
 
         return Inertia::render('services/Index', [
             'services' => $services->map(fn (Service $service): array => [
@@ -160,32 +161,5 @@ class ServiceController extends Controller
             ->count();
 
         return round((($total - $down) / $total) * 100, 2);
-    }
-
-    /**
-     * Last 24h of response times, thinned to at most 30 points per service.
-     *
-     * @return array<int|string, list<int>>
-     */
-    private function sparklines(): array
-    {
-        $since = CarbonImmutable::now()->subDay();
-
-        return Check::query()
-            ->where('checked_at', '>=', $since)
-            ->whereNotNull('status_code')
-            ->orderBy('checked_at')
-            ->get(['service_id', 'response_time_ms'])
-            ->groupBy('service_id')
-            ->map(function ($checks): array {
-                $values = $checks->pluck('response_time_ms')->all();
-                $step = max(1, (int) ceil(count($values) / 30));
-
-                return array_values(array_map(
-                    static fn (mixed $value): int => is_numeric($value) ? (int) $value : 0,
-                    array_filter($values, static fn (mixed $v, int $i): bool => $i % $step === 0, ARRAY_FILTER_USE_BOTH),
-                ));
-            })
-            ->all();
     }
 }
