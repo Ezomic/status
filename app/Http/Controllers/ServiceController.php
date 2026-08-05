@@ -61,6 +61,7 @@ class ServiceController extends Controller
             'service' => [
                 ...$this->summarise($service),
                 'expected_status_code' => $service->expected_status_code,
+                'expected_body' => $service->expected_body,
                 'interval_seconds' => $service->interval_seconds,
                 'timeout_seconds' => $service->timeout_seconds,
                 'degraded_threshold_ms' => $service->degraded_threshold_ms,

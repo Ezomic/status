@@ -15,6 +15,8 @@ class ServiceRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'url' => ['required', 'url:http,https', 'max:255'],
             'expected_status_code' => ['required', 'integer', 'min:100', 'max:599'],
+            // Optional. Empty means status code and response time only, as before.
+            'expected_body' => ['nullable', 'string', 'max:255'],
             'interval_seconds' => ['required', 'integer', 'min:30', 'max:86400'],
             'timeout_seconds' => ['required', 'integer', 'min:1', 'max:60'],
             'degraded_threshold_ms' => ['required', 'integer', 'min:1', 'max:60000'],

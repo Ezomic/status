@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
  * @property string|null $slug
  * @property string $url
  * @property int $expected_status_code
+ * @property string|null $expected_body
  * @property int $interval_seconds
  * @property int $timeout_seconds
  * @property int $degraded_threshold_ms
@@ -39,6 +40,7 @@ use Illuminate\Support\Str;
     'slug',
     'url',
     'expected_status_code',
+    'expected_body',
     'interval_seconds',
     'timeout_seconds',
     'degraded_threshold_ms',

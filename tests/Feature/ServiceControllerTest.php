@@ -249,3 +249,36 @@ it('does not let a short deploy repaint an otherwise healthy day on the strip', 
                 ->and($today['uptime'])->toEqual(100);
         });
 });
+
+it('accepts an expected content string', function () {
+    $this->actingAs($this->user)
+        ->post(route('services.store'), validPayload(['expected_body' => 'Sign in']))
+        ->assertSessionHasNoErrors();
+
+    expect(Service::sole()->expected_body)->toBe('Sign in');
+});
+
+it('stores no expected content when the field is left empty', function () {
+    // ConvertEmptyStringsToNull turns the empty input into null, so an untouched
+    // field opts the service out rather than asserting on an empty string.
+    $this->actingAs($this->user)
+        ->post(route('services.store'), validPayload(['expected_body' => '']))
+        ->assertSessionHasNoErrors();
+
+    expect(Service::sole()->expected_body)->toBeNull();
+});
+
+it('rejects an expected content string longer than the column', function () {
+    $this->actingAs($this->user)
+        ->post(route('services.store'), validPayload(['expected_body' => str_repeat('a', 256)]))
+        ->assertSessionHasErrors('expected_body');
+});
+
+it('surfaces the expected content on the service page', function () {
+    $service = Service::factory()->create(['expected_body' => 'Sign in']);
+
+    $this->actingAs($this->user)
+        ->get(route('services.show', $service))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('service.expected_body', 'Sign in'));
+});

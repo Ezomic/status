@@ -62,3 +62,42 @@ it('records a maintenance check without calling it an outage', function () {
         ->and($check->ok)->toBeTrue()
         ->and($service->refresh()->current_state)->toBe(ServiceState::Maintenance);
 });
+
+it('explains a content failure instead of claiming the status code was wrong', function () {
+    $service = Service::factory()->create(['expected_status_code' => 200, 'expected_body' => 'Sign in']);
+
+    $check = app(RecordCheck::class)->handle(
+        $service,
+        new ProbeResult(200, 90, bodyMatched: false),
+        CarbonImmutable::now(),
+    );
+
+    // Without this the reason would read "Returned 200, expected 200".
+    expect($check->state)->toBe(ServiceState::Down)
+        ->and($check->error)->toBe('Responded without the expected content');
+});
+
+it('keeps the transport error when there is one as well', function () {
+    $service = Service::factory()->create(['expected_body' => 'Sign in']);
+
+    $check = app(RecordCheck::class)->handle(
+        $service,
+        new ProbeResult(null, 0, 'cURL error 6: Could not resolve host', bodyMatched: false),
+        CarbonImmutable::now(),
+    );
+
+    expect($check->error)->toBe('cURL error 6: Could not resolve host');
+});
+
+it('records no error for a passing content assertion', function () {
+    $service = Service::factory()->create(['expected_status_code' => 200, 'expected_body' => 'Sign in']);
+
+    $check = app(RecordCheck::class)->handle(
+        $service,
+        new ProbeResult(200, 90, bodyMatched: true),
+        CarbonImmutable::now(),
+    );
+
+    expect($check->state)->toBe(ServiceState::Up)
+        ->and($check->error)->toBeNull();
+});

@@ -32,6 +32,10 @@ enum ServiceState: string
             // 503 with no Retry-After stays Down: nothing announced it.
             $probe->statusCode === 503 && $probe->retryAfter !== null => self::Maintenance,
             $probe->statusCode !== $expectedStatusCode => self::Down,
+            // After the status code, so a wrong code reports the code rather than the
+            // missing content, and after maintenance, so a deploy's maintenance page
+            // is not failed for lacking the app's content (STAT-22).
+            $probe->bodyMatched === false => self::Down,
             $probe->responseTimeMs >= $degradedThresholdMs => self::Degraded,
             default => self::Up,
         };

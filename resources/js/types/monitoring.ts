@@ -31,6 +31,7 @@ export type ServiceRow = ServiceSummary & {
 
 export type ServiceDetail = ServiceSummary & {
     expected_status_code: number;
+    expected_body: string | null;
     interval_seconds: number;
     timeout_seconds: number;
     degraded_threshold_ms: number;
@@ -59,6 +60,7 @@ export type ServiceForm = {
     name: string;
     url: string;
     expected_status_code: number;
+    expected_body: string;
     interval_seconds: number;
     timeout_seconds: number;
     degraded_threshold_ms: number;
