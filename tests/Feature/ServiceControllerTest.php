@@ -311,3 +311,51 @@ it('reports nothing stale when every service was just checked', function () {
             ->where('freshness.stalled', false)
             ->where('freshness.stale_count', 0));
 });
+
+it('shows a certificate that is comfortably valid', function () {
+    $service = Service::factory()->create([
+        'certificate_expires_at' => CarbonImmutable::now()->addDays(62),
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('services.show', $service))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('service.certificate_days_remaining', 62)
+            ->where('service.certificate_warn_within_days', 30));
+});
+
+it('reports an unknown certificate expiry as null rather than as expiring', function () {
+    $service = Service::factory()->create(['certificate_expires_at' => null]);
+
+    $this->actingAs($this->user)
+        ->get(route('services.show', $service))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('service.certificate_expires_at', null)
+            ->where('service.certificate_days_remaining', null));
+});
+
+it('reports an unreadable certificate as looked-at but unknown', function () {
+    // The distinction the page needs: inspected and unreadable is not the same as
+    // never inspected, and neither may read as expiring.
+    $service = Service::factory()->create([
+        'url' => 'https://a.test',
+        'certificate_expires_at' => null,
+        'certificate_checked_at' => CarbonImmutable::now(),
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('services.show', $service))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('service.uses_tls', true)
+            ->where('service.certificate_expires_at', null)
+            ->where('service.certificate_days_remaining', null)
+            ->whereNot('service.certificate_checked_at', null));
+});
+
+it('marks an http service as not using tls', function () {
+    $service = Service::factory()->create(['url' => 'http://a.test']);
+
+    $this->actingAs($this->user)
+        ->get(route('services.show', $service))
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('service.uses_tls', false));
+});

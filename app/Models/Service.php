@@ -30,6 +30,8 @@ use Illuminate\Support\Str;
  * @property ServiceState $current_state
  * @property CarbonImmutable|null $last_checked_at
  * @property int|null $last_response_time_ms
+ * @property CarbonImmutable|null $certificate_expires_at
+ * @property CarbonImmutable|null $certificate_checked_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  * @property-read Collection<int, Check> $checks
@@ -143,6 +145,47 @@ class Service extends Model
         return (string) preg_replace('#^www\.#', '', (string) parse_url($this->url, PHP_URL_HOST));
     }
 
+    /**
+     * The host exactly as written, unlike host(), which strips a leading www. for
+     * display. A TLS handshake needs the real name: SNI decides which certificate the
+     * server presents, so trimming www. can fetch the wrong one entirely (STAT-23).
+     */
+    public function tlsHost(): ?string
+    {
+        $host = parse_url($this->url, PHP_URL_HOST);
+
+        return is_string($host) && $host !== '' ? $host : null;
+    }
+
+    public function tlsPort(): int
+    {
+        $port = parse_url($this->url, PHP_URL_PORT);
+
+        return is_int($port) ? $port : 443;
+    }
+
+    public function usesTls(): bool
+    {
+        return parse_url($this->url, PHP_URL_SCHEME) === 'https';
+    }
+
+    /**
+     * Whole days until the certificate expires, negative once it already has. Null
+     * whenever the expiry is unknown, which must never be shown as expiring soon.
+     *
+     * Counted between calendar days rather than instants. A raw diff of a date stored
+     * "62 days from now" comes back as 61.999 and truncates to 61, which reads as an
+     * off-by-one; comparing dates gives the answer a human reading the expiry expects.
+     */
+    public function certificateDaysRemaining(CarbonImmutable $now): ?int
+    {
+        if ($this->certificate_expires_at === null) {
+            return null;
+        }
+
+        return (int) $now->startOfDay()->diffInDays($this->certificate_expires_at->startOfDay(), false);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {
@@ -156,6 +199,8 @@ class Service extends Model
             'current_state' => ServiceState::class,
             'last_checked_at' => 'datetime',
             'last_response_time_ms' => 'integer',
+            'certificate_expires_at' => 'datetime',
+            'certificate_checked_at' => 'datetime',
         ];
     }
 }

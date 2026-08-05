@@ -36,6 +36,11 @@ export type ServiceDetail = ServiceSummary & {
     interval_seconds: number;
     timeout_seconds: number;
     degraded_threshold_ms: number;
+    uses_tls: boolean;
+    certificate_expires_at: string | null;
+    certificate_checked_at: string | null;
+    certificate_days_remaining: number | null;
+    certificate_warn_within_days: number;
     strip: StripSlot[];
 };
 

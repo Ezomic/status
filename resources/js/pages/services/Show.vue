@@ -62,6 +62,52 @@ const thresholdY = computed(() => {
 
 const percent = (value: number | null) => (value === null ? '--' : `${value}`);
 
+/**
+ * Absent entirely for an http service or one never inspected. An unknown expiry says so
+ * rather than staying silent, because silence here looks like "fine".
+ */
+const certificate = computed(() => {
+    const days = props.service.certificate_days_remaining;
+
+    // Nothing to say for a plain http service, or before the daily refresh has run.
+    if (
+        !props.service.uses_tls ||
+        props.service.certificate_checked_at === null
+    ) {
+        return null;
+    }
+
+    // Looked, and could not tell. Said plainly rather than left blank, because a blank
+    // line reads as "fine", and never dressed up as expiring.
+    if (props.service.certificate_expires_at === null || days === null) {
+        return {
+            text: `Certificate expiry could not be read (last checked ${formatDate(props.service.certificate_checked_at)})`,
+            class: 'text-muted-foreground',
+        };
+    }
+
+    const on = formatDate(props.service.certificate_expires_at);
+
+    if (days < 0) {
+        return {
+            text: `Certificate expired ${Math.abs(days)} days ago, on ${on}`,
+            class: 'text-status-down font-medium',
+        };
+    }
+
+    if (days <= props.service.certificate_warn_within_days) {
+        return {
+            text: `Certificate expires in ${days} days, on ${on}. Check that renewal is working.`,
+            class: 'text-status-degraded font-medium',
+        };
+    }
+
+    return {
+        text: `Certificate valid for ${days} more days, until ${on}`,
+        class: 'text-muted-foreground',
+    };
+});
+
 function remove() {
     if (
         confirm(`Stop watching ${props.service.name} and delete its history?`)
@@ -98,6 +144,13 @@ function remove() {
                     {{ service.interval_seconds }}s &middot;
                     {{ service.timeout_seconds }}s timeout &middot; slow above
                     {{ formatMs(service.degraded_threshold_ms) }}
+                </p>
+                <p
+                    v-if="certificate"
+                    class="mt-1 text-sm"
+                    :class="certificate.class"
+                >
+                    {{ certificate.text }}
                 </p>
                 <p
                     v-if="service.expected_body"
