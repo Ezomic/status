@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Form } from '@inertiajs/vue3';
 import { useTemplateRef } from 'vue';
+import type { ComponentPublicInstance } from 'vue';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -18,7 +19,21 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const emailInput = useTemplateRef('emailInput');
+const emailInput = useTemplateRef<ComponentPublicInstance>('emailInput');
+
+/**
+ * The ref lands on the shadcn Input component, not on an element. Input is a
+ * <script setup> wrapper with no defineExpose, so calling focus() on the instance
+ * throws rather than doing nothing; its single root is the <input>, which is what
+ * $el resolves to and what can actually take focus (STAT-27).
+ */
+function focusEmail(): void {
+    const element = emailInput.value?.$el;
+
+    if (element instanceof HTMLInputElement) {
+        element.focus();
+    }
+}
 </script>
 
 <template>
@@ -47,7 +62,7 @@ const emailInput = useTemplateRef('emailInput');
                     <Form
                         v-bind="ProfileController.destroy.form()"
                         reset-on-success
-                        @error="() => emailInput?.focus()"
+                        @error="focusEmail"
                         :options="{
                             preserveScroll: true,
                         }"
