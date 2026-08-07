@@ -5,7 +5,6 @@ use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\PublicStatusPageController;
 use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 // The shareable page, and what a signed-out visitor (or anyone just logged out) lands
 // on. Outside the auth group by design (STAT-5).
