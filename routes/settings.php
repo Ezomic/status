@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\Settings\NotificationPreferencesController;
 use App\Http\Controllers\Settings\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,10 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('settings/notifications', [NotificationPreferencesController::class, 'edit'])->name('notifications.edit');
     Route::patch('settings/notifications', [NotificationPreferencesController::class, 'update'])->name('notifications.update');
+
+    Route::get('settings/tokens', [ApiTokenController::class, 'index'])->name('tokens.index');
+    Route::post('settings/tokens', [ApiTokenController::class, 'store'])->name('tokens.store');
+    Route::delete('settings/tokens/{token}', [ApiTokenController::class, 'destroy'])->name('tokens.destroy');
 
     Route::get('settings/appearance', fn () => Inertia::render('settings/Appearance'))->name('appearance.edit');
 });
