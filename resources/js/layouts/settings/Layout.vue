@@ -8,6 +8,7 @@ import { toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editNotifications } from '@/routes/notifications';
 import { edit as editProfile } from '@/routes/profile';
+import { index as tokensIndex } from '@/routes/tokens';
 import type { NavItem } from '@/types';
 
 const sidebarNavItems: NavItem[] = [
@@ -18,6 +19,10 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Notifications',
         href: editNotifications(),
+    },
+    {
+        title: 'API tokens',
+        href: tokensIndex(),
     },
     {
         title: 'Appearance',

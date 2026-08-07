@@ -50,6 +50,14 @@ export type Freshness = {
     last_check_at: string | null;
 };
 
+/** A Sanctum personal access token, as listed in Settings (STAT-14). */
+export type ApiToken = {
+    id: number;
+    name: string;
+    last_used_at: string | null;
+    created_at: string | null;
+};
+
 /** Everything an unauthenticated visitor is allowed to see (STAT-5). */
 export type PublicStatusRow = {
     slug: string | null;
