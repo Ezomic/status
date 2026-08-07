@@ -11,7 +11,9 @@ createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     layout: (name) => {
         switch (true) {
-            case name === 'Welcome':
+            // The public status page renders standalone: no sidebar, no user menu,
+            // nothing that assumes a signed-in visitor.
+            case name === 'PublicStatus':
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;

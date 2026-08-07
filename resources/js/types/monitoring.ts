@@ -50,6 +50,20 @@ export type Freshness = {
     last_check_at: string | null;
 };
 
+/** Everything an unauthenticated visitor is allowed to see (STAT-5). */
+export type PublicStatusRow = {
+    slug: string | null;
+    name: string;
+    state: StatusState;
+    stale: boolean;
+    last_checked_at: string | null;
+};
+
+export type PublicVerdict = {
+    tone: StatusState;
+    headline: string;
+};
+
 export type DashboardCounts = {
     total: number;
     watched: number;
