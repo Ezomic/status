@@ -116,3 +116,73 @@ it('does not run the content assertion when the service opted out', function () 
         expect(app(HttpProbe::class)->probe($service)->bodyMatched)->toBeNull();
     }
 });
+
+/*
+|--------------------------------------------------------------------------
+| Chunked concurrency (STAT-29)
+|--------------------------------------------------------------------------
+*/
+
+it('probes every service even though the pool is chunked', function () {
+    Http::fake(['*' => Http::response('ok', 200)]);
+    config()->set('services.monitor.concurrency', 2);
+
+    // Seven services across chunks of two: the last chunk is a remainder of one, which
+    // is where an off-by-one would drop a service silently.
+    $services = Service::factory()->count(7)->create();
+
+    $results = app(HttpProbe::class)->probeMany($services);
+
+    expect($results)->toHaveCount(7);
+
+    foreach ($services as $service) {
+        expect($results)->toHaveKey($service->id)
+            ->and($results[$service->id]->statusCode)->toBe(200);
+    }
+});
+
+it('keeps each result attached to the right service across chunk boundaries', function () {
+    config()->set('services.monitor.concurrency', 2);
+
+    Http::fake([
+        '*one.test*' => Http::response('', 200),
+        '*two.test*' => Http::response('', 201),
+        '*three.test*' => Http::response('', 202),
+        '*four.test*' => Http::response('', 203),
+        '*five.test*' => Http::response('', 204),
+    ]);
+
+    $services = collect(['one', 'two', 'three', 'four', 'five'])
+        ->map(fn (string $host): Service => Service::factory()->create(['url' => "https://{$host}.test"]));
+
+    $results = app(HttpProbe::class)->probeMany($services);
+
+    // Distinct status per host, so a mix-up between chunks cannot pass.
+    expect($results[$services[0]->id]->statusCode)->toBe(200)
+        ->and($results[$services[1]->id]->statusCode)->toBe(201)
+        ->and($results[$services[2]->id]->statusCode)->toBe(202)
+        ->and($results[$services[3]->id]->statusCode)->toBe(203)
+        ->and($results[$services[4]->id]->statusCode)->toBe(204);
+});
+
+it('probes sequentially when concurrency is one', function () {
+    Http::fake(['*' => Http::response('ok', 200)]);
+    config()->set('services.monitor.concurrency', 1);
+
+    $services = Service::factory()->count(3)->create();
+
+    expect(app(HttpProbe::class)->probeMany($services))->toHaveCount(3);
+});
+
+it('falls back to the default when concurrency is missing or nonsense', function () {
+    Http::fake(['*' => Http::response('ok', 200)]);
+    $services = Service::factory()->count(4)->create();
+
+    foreach ([null, 0, -5, 'many', ''] as $configured) {
+        config()->set('services.monitor.concurrency', $configured);
+
+        expect(app(HttpProbe::class)->probeMany($services))->toHaveCount(4);
+    }
+
+    expect(HttpProbe::DEFAULT_CONCURRENCY)->toBe(3);
+});

@@ -37,6 +37,15 @@ return [
 
     // Bearer token that consumers (e.g. the id portal, ID-13) present to read
     // the machine-readable status endpoint. Unset = endpoint disabled.
+    /*
+     * How many services monitor:run probes at once. Everything watched shares one
+     * droplet and one php-fpm pool, so probing them all simultaneously makes them
+     * compete and the contention lands in the recorded response time (STAT-29).
+     */
+    'monitor' => [
+        'concurrency' => env('MONITOR_CONCURRENCY'),
+    ],
+
     'status_endpoint' => [
         'token' => env('STATUS_ENDPOINT_TOKEN'),
     ],
