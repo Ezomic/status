@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Actions\Monitoring\EvaluateCertificateAlert;
 use App\Models\Service;
 use App\Services\CertificateInspector;
 use Carbon\CarbonImmutable;
@@ -20,7 +21,7 @@ class RefreshCertificates extends Command
      * Deliberately not part of the per-minute check run: a certificate changes every 90
      * days, so once a day is ample, and the handshake is a second connection per service.
      */
-    public function handle(CertificateInspector $inspector): int
+    public function handle(CertificateInspector $inspector, EvaluateCertificateAlert $evaluateAlert): int
     {
         $services = Service::query()
             ->where('is_active', true)
@@ -51,11 +52,20 @@ class RefreshCertificates extends Command
                 'certificate_checked_at' => $now,
             ])->save();
 
+            // Alerting is separate from recording on purpose: the expiry is refreshed
+            // whatever happens, and only the transition into a state notifies (STAT-38).
+            $alert = $evaluateAlert->handle($service, $now);
+
             $this->components->twoColumnDetail(
                 $service->name,
                 $expiresAt === null
                     ? 'unknown'
-                    : sprintf('%s (%d days)', $expiresAt->toDateString(), $service->certificateDaysRemaining($now)),
+                    : sprintf(
+                        '%s (%d days)%s',
+                        $expiresAt->toDateString(),
+                        $service->certificateDaysRemaining($now),
+                        $alert === null ? '' : "  [{$alert->value}]",
+                    ),
             );
         }
 

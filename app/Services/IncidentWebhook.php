@@ -6,17 +6,10 @@ namespace App\Services;
 
 use App\Enums\IncidentChange;
 use App\Models\Incident;
-use Illuminate\Support\Facades\Http;
-use Throwable;
 
 class IncidentWebhook
 {
-    /**
-     * Short on purpose. This runs inside the scheduled check run, which is not queued
-     * (there is no queue worker on the droplet), so a hanging endpoint would otherwise
-     * hold up the checks themselves.
-     */
-    private const TIMEOUT_SECONDS = 5;
+    public function __construct(private readonly OutboundWebhook $webhook) {}
 
     /**
      * POST an incident transition to a configured endpoint (STAT-35).
@@ -30,18 +23,10 @@ class IncidentWebhook
      */
     public function send(Incident $incident, IncidentChange $change): void
     {
-        $url = config('services.monitor.incident_webhook_url');
-
-        if (! is_string($url) || $url === '') {
-            return;
-        }
-
-        try {
-            Http::timeout(self::TIMEOUT_SECONDS)->post($url, $this->payload($incident, $change));
-        } catch (Throwable $exception) {
-            // A dead webhook must never stop the checks. Reported so it is not silent.
-            report($exception);
-        }
+        // Transport lives in OutboundWebhook, shared with certificate alerts (STAT-38).
+        // What stays here is the payload, because what is safe to publish is a decision
+        // about this data rather than about HTTP.
+        $this->webhook->send($this->payload($incident, $change));
     }
 
     /**

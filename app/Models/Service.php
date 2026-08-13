@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\CertificateAlert;
 use App\Enums\ServiceState;
 use Carbon\CarbonImmutable;
 use Database\Factories\ServiceFactory;
@@ -32,6 +33,7 @@ use Illuminate\Support\Str;
  * @property int|null $last_response_time_ms
  * @property CarbonImmutable|null $certificate_expires_at
  * @property CarbonImmutable|null $certificate_checked_at
+ * @property CertificateAlert|null $certificate_alerted
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  * @property-read Collection<int, Check> $checks
@@ -201,6 +203,7 @@ class Service extends Model
             'last_response_time_ms' => 'integer',
             'certificate_expires_at' => 'datetime',
             'certificate_checked_at' => 'datetime',
+            'certificate_alerted' => CertificateAlert::class,
         ];
     }
 }
