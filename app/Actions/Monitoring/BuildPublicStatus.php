@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Monitoring;
 
 use App\Enums\ServiceState;
+use App\Models\IncidentUpdate;
 use App\Models\Service;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -23,7 +24,7 @@ class BuildPublicStatus
      * cover both and neither can drift into exposing something the other does not.
      *
      * @return array{
-     *     services: list<array{slug: string|null, name: string, state: string, stale: bool, last_checked_at: string|null}>,
+     *     services: list<array{slug: string|null, name: string, state: string, stale: bool, last_checked_at: string|null, updates: list<array{body: string, at: string|null}>}>,
      *     verdict: array{tone: string, headline: string},
      *     last_checked_at: string|null
      * }
@@ -39,7 +40,7 @@ class BuildPublicStatus
 
     /**
      * @return array{
-     *     services: list<array{slug: string|null, name: string, state: string, stale: bool, last_checked_at: string|null}>,
+     *     services: list<array{slug: string|null, name: string, state: string, stale: bool, last_checked_at: string|null, updates: list<array{body: string, at: string|null}>}>,
      *     verdict: array{tone: string, headline: string},
      *     last_checked_at: string|null
      * }
@@ -47,6 +48,14 @@ class BuildPublicStatus
     private function build(CarbonImmutable $now): array
     {
         $services = Service::query()->public()->orderBy('name')->get();
+
+        $serviceIds = [];
+
+        foreach ($services as $service) {
+            $serviceIds[] = $service->id;
+        }
+
+        $updates = $this->publishedUpdates($serviceIds);
 
         $rows = [];
 
@@ -63,6 +72,7 @@ class BuildPublicStatus
                     : $service->current_state->value,
                 'stale' => $stale,
                 'last_checked_at' => $service->last_checked_at?->toIso8601String(),
+                'updates' => $updates[$service->id] ?? [],
             ];
         }
 
@@ -78,11 +88,50 @@ class BuildPublicStatus
     }
 
     /**
+     * Published updates for services with an incident still open (STAT-34).
+     *
+     * Only human-written bodies are ever published. Incident::$reason is deliberately not
+     * here and must never be: it is a raw cURL string carrying the full internal hostname,
+     * which is the whole reason STAT-5 keeps it off unauthenticated surfaces. Once an
+     * incident resolves its updates drop off the page, because this reports the current
+     * state rather than a history.
+     *
+     * @param  list<int>  $serviceIds
+     * @return array<int, list<array{body: string, at: string|null}>>
+     */
+    private function publishedUpdates(array $serviceIds): array
+    {
+        if ($serviceIds === []) {
+            return [];
+        }
+
+        $rows = IncidentUpdate::query()
+            ->published()
+            ->whereHas('incident', fn ($query) => $query
+                ->whereIn('service_id', $serviceIds)
+                ->whereNull('resolved_at'))
+            ->with('incident:id,service_id')
+            ->orderBy('created_at')
+            ->get();
+
+        $byService = [];
+
+        foreach ($rows as $update) {
+            $byService[$update->incident->service_id][] = [
+                'body' => $update->body,
+                'at' => $update->created_at?->toIso8601String(),
+            ];
+        }
+
+        return $byService;
+    }
+
+    /**
      * Worst reported state wins. Unknown sits above up rather than beside it: a service
      * nobody can currently confirm should not be folded into "all systems operational",
      * even though it is not an outage either.
      *
-     * @param  list<array{slug: string|null, name: string, state: string, stale: bool, last_checked_at: string|null}>  $rows
+     * @param  list<array{slug: string|null, name: string, state: string, stale: bool, last_checked_at: string|null, updates: list<array{body: string, at: string|null}>}>  $rows
      * @return array{tone: string, headline: string}
      */
     private function verdict(array $rows): array

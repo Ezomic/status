@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
-import { stateLabel } from '@/lib/monitoring';
+import { formatDate, formatTime, stateLabel } from '@/lib/monitoring';
 import type { PublicStatusRow, PublicVerdict } from '@/types/monitoring';
 
 const props = defineProps<{
@@ -102,23 +102,50 @@ const lastChecked = computed(() => {
                 <li
                     v-for="service in services"
                     :key="service.slug ?? service.name"
-                    class="flex items-center justify-between gap-4 px-4 py-3.5"
+                    class="px-4 py-3.5"
                 >
-                    <span class="font-medium tracking-tight">{{
-                        service.name
-                    }}</span>
-                    <span class="flex items-center gap-2 text-sm">
-                        <span
-                            class="size-2 rounded-full"
-                            :class="DOT[service.state] ?? DOT.unknown"
-                            aria-hidden="true"
-                        />
-                        <span class="text-muted-foreground">{{
-                            service.stale
-                                ? 'Unconfirmed'
-                                : stateLabel(service.state)
+                    <div class="flex items-center justify-between gap-4">
+                        <span class="font-medium tracking-tight">{{
+                            service.name
                         }}</span>
-                    </span>
+                        <span class="flex items-center gap-2 text-sm">
+                            <span
+                                class="size-2 rounded-full"
+                                :class="DOT[service.state] ?? DOT.unknown"
+                                aria-hidden="true"
+                            />
+                            <span class="text-muted-foreground">{{
+                                service.stale
+                                    ? 'Unconfirmed'
+                                    : stateLabel(service.state)
+                            }}</span>
+                        </span>
+                    </div>
+
+                    <!-- Human-written updates only. The machine-written incident reason
+                         is never published: it carries internal hostnames (STAT-5). -->
+                    <ol
+                        v-if="service.updates.length > 0"
+                        class="mt-3 space-y-2 border-l pl-3"
+                    >
+                        <li
+                            v-for="(update, index) in service.updates"
+                            :key="index"
+                            class="text-sm"
+                        >
+                            <span
+                                v-if="update.at"
+                                class="text-xs text-muted-foreground"
+                                >{{ formatDate(update.at) }}
+                                {{ formatTime(update.at) }}</span
+                            >
+                            <p
+                                class="whitespace-pre-line text-muted-foreground"
+                            >
+                                {{ update.body }}
+                            </p>
+                        </li>
+                    </ol>
                 </li>
             </ul>
 
