@@ -110,6 +110,16 @@ class Service extends Model
         return $this->hasMany(Incident::class);
     }
 
+    /**
+     * Users who asked for alerts about this service specifically (STAT-42).
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function subscribers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'service_subscriptions');
+    }
+
     /** @return BelongsToMany<MaintenanceWindow, $this> */
     public function maintenanceWindows(): BelongsToMany
     {

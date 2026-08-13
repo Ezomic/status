@@ -89,15 +89,17 @@ it('shows the current preference on the settings page', function () {
 it('lets a user opt in and out', function () {
     $user = User::factory()->create(['wants_incident_mail' => false]);
 
+    // all_services is required rather than optional, so a request that forgets it cannot
+    // wipe someone's per-service selection as a side effect (STAT-42).
     $this->actingAs($user)
-        ->patch(route('notifications.update'), ['wants_incident_mail' => true])
+        ->patch(route('notifications.update'), ['wants_incident_mail' => true, 'all_services' => true])
         ->assertRedirect(route('notifications.edit'))
         ->assertSessionHasNoErrors();
 
     expect($user->refresh()->wants_incident_mail)->toBeTrue();
 
     $this->actingAs($user)
-        ->patch(route('notifications.update'), ['wants_incident_mail' => false])
+        ->patch(route('notifications.update'), ['wants_incident_mail' => false, 'all_services' => true])
         ->assertSessionHasNoErrors();
 
     expect($user->refresh()->wants_incident_mail)->toBeFalse();
@@ -108,7 +110,7 @@ it('only ever changes the acting user\'s own preference', function () {
     $other = User::factory()->create(['wants_incident_mail' => false]);
 
     $this->actingAs($actor)
-        ->patch(route('notifications.update'), ['wants_incident_mail' => true])
+        ->patch(route('notifications.update'), ['wants_incident_mail' => true, 'all_services' => true])
         ->assertSessionHasNoErrors();
 
     expect($actor->refresh()->wants_incident_mail)->toBeTrue()
@@ -117,12 +119,18 @@ it('only ever changes the acting user\'s own preference', function () {
 
 it('rejects a non-boolean preference', function () {
     $this->actingAs(User::factory()->create())
-        ->patch(route('notifications.update'), ['wants_incident_mail' => 'maybe'])
+        ->patch(route('notifications.update'), ['wants_incident_mail' => 'maybe', 'all_services' => true])
         ->assertSessionHasErrors('wants_incident_mail');
 });
 
 it('keeps guests out of notification settings', function () {
     $this->get(route('notifications.edit'))->assertRedirect(route('login'));
-    $this->patch(route('notifications.update'), ['wants_incident_mail' => true])
+    $this->patch(route('notifications.update'), ['wants_incident_mail' => true, 'all_services' => true])
         ->assertRedirect(route('login'));
+});
+
+it('rejects a request that omits the narrowing choice', function () {
+    $this->actingAs(User::factory()->create())
+        ->patch(route('notifications.update'), ['wants_incident_mail' => true])
+        ->assertSessionHasErrors('all_services');
 });

@@ -100,8 +100,9 @@ class EvaluateIncident
         // Opted-in users only, not User::all() (STAT-24). Since STAT-7 users are ID SSO
         // shadow copies created on first login, so mailing everyone meant anyone who ever
         // signed in silently started receiving every outage email with no way out.
+        // Narrowed again per service in STAT-42, which leaves the un-narrowed case alone.
         Notification::send(
-            User::query()->wantsIncidentMail()->get(),
+            User::query()->wantsIncidentMail()->subscribedTo($incident->service)->get(),
             new IncidentStatusChanged($incident, $change),
         );
 

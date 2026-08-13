@@ -62,7 +62,7 @@ class EvaluateCertificateAlert
     private function announce(Service $service, CertificateAlert $alert, int $days): void
     {
         Notification::send(
-            User::query()->wantsIncidentMail()->get(),
+            User::query()->wantsIncidentMail()->subscribedTo($service)->get(),
             new CertificateExpiring($service, $alert, $days),
         );
 
