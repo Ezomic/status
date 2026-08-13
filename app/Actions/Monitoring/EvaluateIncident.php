@@ -25,6 +25,14 @@ class EvaluateIncident
      */
     public function handle(Service $service, Check $check): ?Incident
     {
+        // Declared planned work is neutral for the same reasons as a detected deploy, and
+        // must not resolve an open incident either: a window is not a recovery (STAT-37).
+        // The check itself is still recorded honestly by RecordCheck, so the data does not
+        // lie about what the service was doing; only the incident logic stands down.
+        if ($service->hasOpenMaintenanceWindowAt($check->checked_at)) {
+            return $service->openIncident();
+        }
+
         // A maintenance window is neutral: it neither opens nor escalates nor resolves
         // anything (STAT-18). Returning here is what stops a deploy from being reported
         // as an outage, and a deploy that happens mid-outage from being reported as a

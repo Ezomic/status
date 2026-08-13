@@ -3,11 +3,16 @@ import { Head } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { formatDate, formatTime, stateLabel } from '@/lib/monitoring';
-import type { PublicStatusRow, PublicVerdict } from '@/types/monitoring';
+import type {
+    PublicMaintenance,
+    PublicStatusRow,
+    PublicVerdict,
+} from '@/types/monitoring';
 
 const props = defineProps<{
     services: PublicStatusRow[];
     verdict: PublicVerdict;
+    maintenance: PublicMaintenance;
     last_checked_at: string | null;
 }>();
 
@@ -34,6 +39,17 @@ const DOT: Record<string, string> = {
     maintenance: 'bg-status-maintenance',
     unknown: 'bg-status-idle',
 };
+
+/**
+ * Hours and minutes only. formatTime() includes seconds, which is right for an incident
+ * log and absurd on a public notice announcing planned work.
+ */
+function windowTime(iso: string): string {
+    return new Date(iso).toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
 
 /** Coarse on purpose: a public page should not imply second-level precision. */
 const lastChecked = computed(() => {
@@ -93,6 +109,41 @@ const lastChecked = computed(() => {
                         Last checked {{ lastChecked }}.
                     </p>
                 </div>
+            </div>
+
+            <!-- Declared windows, which is the part a detected deploy cannot announce
+                 ahead of time (STAT-37). -->
+            <div
+                v-if="
+                    maintenance.open.length > 0 ||
+                    maintenance.upcoming.length > 0
+                "
+                class="mt-8 space-y-2"
+            >
+                <p
+                    v-for="(window, index) in maintenance.open"
+                    :key="`open-${index}`"
+                    class="rounded-lg border border-l-3 border-l-status-maintenance bg-card p-4 text-sm"
+                >
+                    <strong class="font-semibold text-status-maintenance"
+                        >Maintenance in progress</strong
+                    >
+                    &middot; {{ window.description }}. Expected to finish
+                    {{ windowTime(window.ends_at) }}.
+                </p>
+                <p
+                    v-for="(window, index) in maintenance.upcoming"
+                    :key="`upcoming-${index}`"
+                    class="rounded-lg border bg-card p-4 text-sm text-muted-foreground"
+                >
+                    <strong class="font-semibold text-foreground"
+                        >Scheduled maintenance</strong
+                    >
+                    &middot; {{ window.description }} on
+                    {{ formatDate(window.starts_at) }},
+                    {{ windowTime(window.starts_at) }} to
+                    {{ windowTime(window.ends_at) }}.
+                </p>
             </div>
 
             <ul
