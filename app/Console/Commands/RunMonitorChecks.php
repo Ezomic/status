@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Actions\Monitoring\EvaluateIncident;
 use App\Actions\Monitoring\RecordCheck;
 use App\Models\Service;
+use App\Services\Heartbeat;
 use App\Services\HttpProbe;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -19,8 +20,12 @@ class RunMonitorChecks extends Command
 
     protected $description = 'Probe every service that is due for a check';
 
-    public function handle(HttpProbe $probe, RecordCheck $recordCheck, EvaluateIncident $evaluateIncident): int
-    {
+    public function handle(
+        HttpProbe $probe,
+        RecordCheck $recordCheck,
+        EvaluateIncident $evaluateIncident,
+        Heartbeat $heartbeat,
+    ): int {
         // One timestamp for the whole run, so a run is a queryable group and the
         // command behaves deterministically under a frozen clock.
         $now = CarbonImmutable::now();
@@ -29,10 +34,15 @@ class RunMonitorChecks extends Command
         if ($due->isEmpty()) {
             $this->components->info('No services are due.');
 
+            // Still a healthy run: the runner ran, there was simply nothing to do. Not
+            // pinging here would make a quiet minute indistinguishable from a dead cron.
+            $heartbeat->ping();
+
             return self::SUCCESS;
         }
 
         $results = $probe->probeMany($due);
+        $recorded = 0;
 
         foreach ($due as $service) {
             $result = $results[$service->id] ?? null;
@@ -44,6 +54,7 @@ class RunMonitorChecks extends Command
             try {
                 $check = $recordCheck->handle($service, $result, $now);
                 $evaluateIncident->handle($service, $check);
+                $recorded++;
 
                 $this->components->twoColumnDetail(
                     $service->name,
@@ -55,6 +66,18 @@ class RunMonitorChecks extends Command
                 $this->components->error("{$service->name}: {$exception->getMessage()}");
             }
         }
+
+        // Recording nothing at all, with services due, means the run was blind: a locked
+        // database or similar. Withholding the ping is how that reaches someone, since
+        // the app itself cannot report it (STAT-36). One flaky service does not count,
+        // because that failure is already visible in the app.
+        if ($recorded === 0) {
+            $this->components->error('Nothing was recorded, so the heartbeat was withheld.');
+
+            return self::FAILURE;
+        }
+
+        $heartbeat->ping();
 
         return self::SUCCESS;
     }
