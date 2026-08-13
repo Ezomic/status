@@ -7,7 +7,10 @@ import {
     formatTime,
     stateBg,
 } from '@/lib/monitoring';
-import { index as incidentsIndex } from '@/routes/incidents';
+import {
+    index as incidentsIndex,
+    show as incidentsShow,
+} from '@/routes/incidents';
 import { show as servicesShow } from '@/routes/services';
 import type { IncidentRow } from '@/types/monitoring';
 
@@ -76,11 +79,27 @@ defineOptions({
                             :state="incident.severity"
                             :label="incident.resolved_at ? 'Resolved' : 'Open'"
                         />
+                        <span
+                            v-if="incident.acknowledged_at"
+                            class="text-xs text-status-maintenance"
+                            >acknowledged</span
+                        >
                     </div>
 
                     <p class="mt-1 text-sm text-muted-foreground">
                         {{ incident.reason }}
                     </p>
+
+                    <Link
+                        :href="incidentsShow(incident.id)"
+                        class="mt-1 inline-block text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                        {{
+                            incident.update_count
+                                ? `${incident.update_count} update${incident.update_count === 1 ? '' : 's'}`
+                                : 'Add an update'
+                        }}
+                    </Link>
 
                     <p
                         class="mt-1.5 font-mono text-xs text-muted-foreground tabular-nums"

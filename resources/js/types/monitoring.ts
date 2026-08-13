@@ -65,6 +65,33 @@ export type PublicStatusRow = {
     state: StatusState;
     stale: boolean;
     last_checked_at: string | null;
+    updates: PublicUpdate[];
+};
+
+export type PublicUpdate = {
+    body: string;
+    at: string | null;
+};
+
+export type IncidentUpdateRow = {
+    id: number;
+    body: string;
+    is_published: boolean;
+    author: string | null;
+    created_at: string | null;
+};
+
+export type IncidentDetail = {
+    id: number;
+    service: string;
+    service_id: number;
+    severity: StatusState;
+    severity_label: string;
+    reason: string;
+    started_at: string;
+    resolved_at: string | null;
+    acknowledged_at: string | null;
+    acknowledged_by: string | null;
 };
 
 export type PublicVerdict = {
@@ -110,6 +137,8 @@ export type IncidentRow = {
     reason: string;
     started_at: string;
     resolved_at: string | null;
+    acknowledged_at?: string | null;
+    update_count?: number;
 };
 
 export type CheckRow = {
