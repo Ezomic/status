@@ -94,6 +94,20 @@ export type IncidentDetail = {
     acknowledged_by: string | null;
 };
 
+export type PublicMaintenance = {
+    open: { description: string; ends_at: string }[];
+    upcoming: { description: string; starts_at: string; ends_at: string }[];
+};
+
+export type MaintenanceWindowRow = {
+    id: number;
+    description: string;
+    starts_at: string;
+    ends_at: string;
+    services: string[];
+    phase: 'open' | 'upcoming' | 'past';
+};
+
 export type PublicVerdict = {
     tone: StatusState;
     headline: string;

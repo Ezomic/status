@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { Activity, LayoutGrid, TriangleAlert } from '@lucide/vue';
+import { Activity, LayoutGrid, TriangleAlert, Wrench } from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as incidentsIndex } from '@/routes/incidents';
+import { index as maintenanceIndex } from '@/routes/maintenance';
 import { index as servicesIndex } from '@/routes/services';
 import type { NavItem } from '@/types';
 
@@ -33,6 +34,11 @@ const mainNavItems: NavItem[] = [
         title: 'Incidents',
         href: incidentsIndex(),
         icon: TriangleAlert,
+    },
+    {
+        title: 'Maintenance',
+        href: maintenanceIndex(),
+        icon: Wrench,
     },
 ];
 </script>

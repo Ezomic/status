@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -38,6 +39,7 @@ use Illuminate\Support\Str;
  * @property CarbonImmutable|null $updated_at
  * @property-read Collection<int, Check> $checks
  * @property-read Collection<int, Incident> $incidents
+ * @property-read Collection<int, MaintenanceWindow> $maintenanceWindows
  */
 #[Fillable([
     'name',
@@ -99,6 +101,24 @@ class Service extends Model
     public function incidents(): HasMany
     {
         return $this->hasMany(Incident::class);
+    }
+
+    /** @return BelongsToMany<MaintenanceWindow, $this> */
+    public function maintenanceWindows(): BelongsToMany
+    {
+        return $this->belongsToMany(MaintenanceWindow::class, 'maintenance_window_service');
+    }
+
+    /**
+     * Whether someone declared planned work covering this moment (STAT-37).
+     *
+     * Distinct from ServiceState::Maintenance, which is detected from a live 503 carrying
+     * Retry-After (STAT-18). That path covers `artisan down`; this one covers planned work
+     * where the app keeps answering, and can be declared before it starts.
+     */
+    public function hasOpenMaintenanceWindowAt(CarbonImmutable $now): bool
+    {
+        return $this->maintenanceWindows()->openAt($now)->exists();
     }
 
     public function isDueAt(CarbonImmutable $now): bool

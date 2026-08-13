@@ -6,6 +6,7 @@ namespace App\Actions\Monitoring;
 
 use App\Enums\ServiceState;
 use App\Models\IncidentUpdate;
+use App\Models\MaintenanceWindow;
 use App\Models\Service;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -25,6 +26,7 @@ class BuildPublicStatus
      *
      * @return array{
      *     services: list<array{slug: string|null, name: string, state: string, stale: bool, last_checked_at: string|null, updates: list<array{body: string, at: string|null}>}>,
+     *     maintenance: array{open: list<array{description: string, ends_at: string}>, upcoming: list<array{description: string, starts_at: string, ends_at: string}>},
      *     verdict: array{tone: string, headline: string},
      *     last_checked_at: string|null
      * }
@@ -41,6 +43,7 @@ class BuildPublicStatus
     /**
      * @return array{
      *     services: list<array{slug: string|null, name: string, state: string, stale: bool, last_checked_at: string|null, updates: list<array{body: string, at: string|null}>}>,
+     *     maintenance: array{open: list<array{description: string, ends_at: string}>, upcoming: list<array{description: string, starts_at: string, ends_at: string}>},
      *     verdict: array{tone: string, headline: string},
      *     last_checked_at: string|null
      * }
@@ -80,6 +83,7 @@ class BuildPublicStatus
 
         return [
             'services' => $rows,
+            'maintenance' => $this->windows($now),
             'verdict' => $this->verdict($rows),
             'last_checked_at' => $lastChecked instanceof CarbonImmutable
                 ? $lastChecked->toIso8601String()
@@ -124,6 +128,38 @@ class BuildPublicStatus
         }
 
         return $byService;
+    }
+
+    /**
+     * Declared windows a reader should know about (STAT-37).
+     *
+     * Open ones explain why something may be unavailable right now; upcoming ones warn
+     * before it happens, which is the part the detected-deploy path in STAT-18 cannot do.
+     * Descriptions are written for readers, so they carry no host or URL.
+     *
+     * @return array{open: list<array{description: string, ends_at: string}>, upcoming: list<array{description: string, starts_at: string, ends_at: string}>}
+     */
+    private function windows(CarbonImmutable $now): array
+    {
+        $open = [];
+        $upcoming = [];
+
+        foreach (MaintenanceWindow::query()->openAt($now)->orderBy('ends_at')->get() as $window) {
+            $open[] = [
+                'description' => $window->description,
+                'ends_at' => $window->ends_at->toIso8601String(),
+            ];
+        }
+
+        foreach (MaintenanceWindow::query()->upcomingAt($now)->orderBy('starts_at')->limit(3)->get() as $window) {
+            $upcoming[] = [
+                'description' => $window->description,
+                'starts_at' => $window->starts_at->toIso8601String(),
+                'ends_at' => $window->ends_at->toIso8601String(),
+            ];
+        }
+
+        return ['open' => $open, 'upcoming' => $upcoming];
     }
 
     /**
