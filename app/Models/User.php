@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -34,6 +35,16 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
+     * Services this user wants alerts for (STAT-42).
+     *
+     * @return BelongsToMany<Service, $this>
+     */
+    public function subscribedServices(): BelongsToMany
+    {
+        return $this->belongsToMany(Service::class, 'service_subscriptions');
+    }
+
+    /**
      * Who should actually receive incident mail (STAT-24).
      *
      * @param  Builder<User>  $query
@@ -41,6 +52,24 @@ class User extends Authenticatable
     public function scopeWantsIncidentMail(Builder $query): void
     {
         $query->where('wants_incident_mail', true);
+    }
+
+    /**
+     * Narrow recipients to the ones who care about this service (STAT-42).
+     *
+     * No subscriptions at all means every service rather than none: that is what makes
+     * the un-backfilled table behave like the old single boolean, and what stops a newly
+     * added service from alerting nobody. Opting out of everything is the master switch's
+     * job, not an empty set's.
+     *
+     * @param  Builder<User>  $query
+     */
+    public function scopeSubscribedTo(Builder $query, Service $service): void
+    {
+        $query->where(fn (Builder $query) => $query
+            ->whereDoesntHave('subscribedServices')
+            ->orWhereHas('subscribedServices', fn (Builder $subscribed) => $subscribed
+                ->whereKey($service->getKey())));
     }
 
     /**
