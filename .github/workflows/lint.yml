@@ -51,6 +51,12 @@ jobs:
       - name: Generate Wayfinder actions/routes
         run: php artisan wayfinder:generate --with-form
 
+      # Fails the build on a known advisory. That can turn a PR red for an upstream
+      # publication rather than anything in the diff; the fix is a composer update, and
+      # finding out here is better than finding out never. STAT-28 sat unnoticed with 8.
+      - name: Audit Composer dependencies
+        run: composer audit --abandoned=ignore
+
       - name: Check Pint formatting
         run: composer lint:check
 
