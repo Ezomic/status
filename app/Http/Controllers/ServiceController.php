@@ -66,7 +66,12 @@ class ServiceController extends Controller
         return Inertia::render('services/Show', [
             'service' => [
                 ...$this->summarise($service),
+                'http_method' => $service->http_method->value,
                 'expected_status_code' => $service->expected_status_code,
+                // Only the names, never the values. Once saved, a header value is never
+                // rendered back: an Authorization token must not travel to the browser
+                // again just because someone opened the edit form (STAT-40).
+                'header_names' => array_keys($service->headers ?? []),
                 'expected_body' => $service->expected_body,
                 'interval_seconds' => $service->interval_seconds,
                 'timeout_seconds' => $service->timeout_seconds,

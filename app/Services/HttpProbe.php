@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\HttpMethod;
 use App\Models\Service;
 use App\ValueObjects\ProbeResult;
 use GuzzleHttp\TransferStats;
@@ -79,15 +80,22 @@ class HttpProbe
         $elapsed = collect();
 
         $responses = Http::pool(fn (Pool $pool): array => $services
-            ->map(fn (Service $service) => $pool
-                ->as((string) $service->id)
-                ->timeout($service->timeout_seconds)
-                ->withOptions([
-                    'on_stats' => function (TransferStats $stats) use ($elapsed, $service): void {
-                        $elapsed->put($service->id, $stats->getTransferTime() ?? 0.0);
-                    },
-                ])
-                ->get($service->url))
+            ->map(function (Service $service) use ($pool, $elapsed) {
+                $request = $pool
+                    ->as((string) $service->id)
+                    ->timeout($service->timeout_seconds)
+                    ->withHeaders($service->headers ?? [])
+                    ->withOptions([
+                        'on_stats' => function (TransferStats $stats) use ($elapsed, $service): void {
+                            $elapsed->put($service->id, $stats->getTransferTime() ?? 0.0);
+                        },
+                    ]);
+
+                // HEAD skips downloading a body the check never looks at (STAT-40).
+                return $service->http_method === HttpMethod::Head
+                    ? $request->head($service->url)
+                    : $request->get($service->url);
+            })
             ->all());
 
         $results = [];

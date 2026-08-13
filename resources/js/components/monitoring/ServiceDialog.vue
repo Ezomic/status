@@ -26,6 +26,7 @@ const open = ref(false);
 const form = useForm({
     name: props.service?.name ?? '',
     url: props.service?.url ?? '',
+    http_method: props.service?.http_method ?? 'GET',
     expected_status_code: props.service?.expected_status_code ?? 200,
     expected_body: props.service?.expected_body ?? '',
     interval_seconds: props.service?.interval_seconds ?? 60,
@@ -118,6 +119,31 @@ function submit() {
                     </div>
 
                     <div class="grid gap-2">
+                        <Label for="http_method">Method</Label>
+                        <div class="flex gap-2">
+                            <button
+                                v-for="method in ['GET', 'HEAD'] as const"
+                                :key="method"
+                                type="button"
+                                class="rounded-md border px-3 py-1.5 text-sm transition-colors"
+                                :class="
+                                    form.http_method === method
+                                        ? 'border-foreground bg-muted font-medium'
+                                        : 'text-muted-foreground hover:bg-muted'
+                                "
+                                @click="form.http_method = method"
+                            >
+                                {{ method }}
+                            </button>
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            HEAD skips downloading the body, which is cheaper.
+                            It has no body to match, so it cannot be combined
+                            with expected content.
+                        </p>
+                    </div>
+
+                    <div class="grid gap-2">
                         <Label for="expected_body"
                             >Expected content
                             <span class="text-muted-foreground"
@@ -129,6 +155,7 @@ function submit() {
                             v-model="form.expected_body"
                             placeholder="Sign in"
                             autocomplete="off"
+                            :disabled="form.http_method === 'HEAD'"
                         />
                         <p class="text-xs text-muted-foreground">
                             Text the response must contain. Catches an app that

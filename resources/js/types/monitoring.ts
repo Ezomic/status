@@ -31,6 +31,8 @@ export type ServiceRow = ServiceSummary & {
 };
 
 export type ServiceDetail = ServiceSummary & {
+    http_method: 'GET' | 'HEAD';
+    header_names: string[];
     expected_status_code: number;
     expected_body: string | null;
     interval_seconds: number;
@@ -166,6 +168,7 @@ export type CheckRow = {
 export type ServiceForm = {
     name: string;
     url: string;
+    http_method: 'GET' | 'HEAD';
     expected_status_code: number;
     expected_body: string;
     interval_seconds: number;

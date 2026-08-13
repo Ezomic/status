@@ -16,6 +16,7 @@ function validPayload(array $overrides = []): array
     return array_merge([
         'name' => 'Tracker',
         'url' => 'https://tracker.thijssensoftware.nl',
+        'http_method' => 'GET',
         'expected_status_code' => 200,
         'interval_seconds' => 60,
         'timeout_seconds' => 5,
