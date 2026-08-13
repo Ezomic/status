@@ -11,6 +11,7 @@ use App\Models\Incident;
 use App\Models\Service;
 use App\Models\User;
 use App\Notifications\IncidentStatusChanged;
+use App\Services\IncidentWebhook;
 use Illuminate\Support\Facades\Notification;
 
 class EvaluateIncident
@@ -95,6 +96,10 @@ class EvaluateIncident
             User::query()->wantsIncidentMail()->get(),
             new IncidentStatusChanged($incident, $change),
         );
+
+        // Same three transitions, so the webhook inherits the dedupe rather than
+        // reimplementing it (STAT-35).
+        app(IncidentWebhook::class)->send($incident, $change);
     }
 
     /**
