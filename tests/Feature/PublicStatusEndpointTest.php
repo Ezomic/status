@@ -95,9 +95,9 @@ class PublicStatusEndpointTest extends TestCase
         $this->assertStringNotContainsString('secret-host.internal', $response->getContent());
         $this->assertStringNotContainsString('137', $response->getContent());
         $this->assertSame(
-            // 'updates' is additive (STAT-34): human-written published updates, which are
-            // publishable by definition. The machine-written reason is still absent.
-            ['slug', 'name', 'state', 'stale', 'last_checked_at', 'updates'],
+            // 'updates' (STAT-34) and 'group' (STAT-43) are both additive and both
+            // reader-facing by design. The machine-written reason is still absent.
+            ['slug', 'name', 'group', 'state', 'stale', 'last_checked_at', 'updates'],
             array_keys($response->json('services.0')),
         );
     }

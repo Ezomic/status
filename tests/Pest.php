@@ -54,3 +54,30 @@ function something()
 {
     // ..
 }
+
+/*
+|--------------------------------------------------------------------------
+| Helpers
+|--------------------------------------------------------------------------
+*/
+
+/**
+ * A complete, valid service payload. Shared because several suites post services and
+ * every new required field would otherwise have to be added to each copy by hand.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function validPayload(array $overrides = []): array
+{
+    return array_merge([
+        'name' => 'Tracker',
+        'url' => 'https://tracker.thijssensoftware.nl',
+        'http_method' => 'GET',
+        'expected_status_code' => 200,
+        'interval_seconds' => 60,
+        'timeout_seconds' => 5,
+        'degraded_threshold_ms' => 1000,
+        'is_active' => true,
+    ], $overrides);
+}

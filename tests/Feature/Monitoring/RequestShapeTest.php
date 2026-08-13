@@ -13,21 +13,6 @@ beforeEach(function (): void {
     $this->user = User::factory()->create();
 });
 
-/** @return array<string, mixed> */
-function shapePayload(array $overrides = []): array
-{
-    return array_merge([
-        'name' => 'Tracker',
-        'url' => 'https://tracker.thijssensoftware.nl',
-        'http_method' => 'GET',
-        'expected_status_code' => 200,
-        'interval_seconds' => 60,
-        'timeout_seconds' => 5,
-        'degraded_threshold_ms' => 1000,
-        'is_active' => true,
-    ], $overrides);
-}
-
 it('defaults to GET so nothing changes for existing services', function () {
     expect(Service::factory()->create()->http_method)->toBe(HttpMethod::Get);
 });
@@ -79,7 +64,7 @@ it('refuses HEAD combined with expected content', function () {
     // A HEAD response has no body, so the assertion could never pass and the service
     // would sit permanently down for a reason nobody could see (STAT-40 vs STAT-22).
     $this->actingAs($this->user)
-        ->post(route('services.store'), shapePayload([
+        ->post(route('services.store'), validPayload([
             'http_method' => 'HEAD',
             'expected_body' => 'Sign in',
         ]))
@@ -90,7 +75,7 @@ it('refuses HEAD combined with expected content', function () {
 
 it('allows HEAD with no expected content', function () {
     $this->actingAs($this->user)
-        ->post(route('services.store'), shapePayload([
+        ->post(route('services.store'), validPayload([
             'http_method' => 'HEAD',
             'expected_body' => '',
         ]))
@@ -103,7 +88,7 @@ it('rejects a method that is not GET or HEAD', function () {
     // A check runs every minute forever, so it must be safe to repeat.
     foreach (['POST', 'DELETE', 'PUT'] as $method) {
         $this->actingAs($this->user)
-            ->post(route('services.store'), shapePayload(['http_method' => $method]))
+            ->post(route('services.store'), validPayload(['http_method' => $method]))
             ->assertSessionHasErrors('http_method');
     }
 

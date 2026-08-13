@@ -183,6 +183,11 @@ const verdict = computed(() => {
                         class="block truncate font-mono text-xs text-muted-foreground"
                         >{{ service.host }}</span
                     >
+                    <span
+                        v-if="service.group"
+                        class="mt-0.5 block truncate text-xs text-muted-foreground"
+                        >{{ service.group }}</span
+                    >
                 </span>
 
                 <span

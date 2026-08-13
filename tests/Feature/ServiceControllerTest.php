@@ -10,21 +10,6 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia;
 
-/** @return array<string, mixed> */
-function validPayload(array $overrides = []): array
-{
-    return array_merge([
-        'name' => 'Tracker',
-        'url' => 'https://tracker.thijssensoftware.nl',
-        'http_method' => 'GET',
-        'expected_status_code' => 200,
-        'interval_seconds' => 60,
-        'timeout_seconds' => 5,
-        'degraded_threshold_ms' => 1000,
-        'is_active' => true,
-    ], $overrides);
-}
-
 beforeEach(function () {
     $this->user = User::factory()->create();
 });

@@ -25,7 +25,7 @@ class BuildPublicStatus
      * cover both and neither can drift into exposing something the other does not.
      *
      * @return array{
-     *     services: list<array{slug: string|null, name: string, state: string, stale: bool, last_checked_at: string|null, updates: list<array{body: string, at: string|null}>}>,
+     *     services: list<array{slug: string|null, name: string, group: string|null, state: string, stale: bool, last_checked_at: string|null, updates: list<array{body: string, at: string|null}>}>,
      *     maintenance: array{open: list<array{description: string, ends_at: string}>, upcoming: list<array{description: string, starts_at: string, ends_at: string}>},
      *     verdict: array{tone: string, headline: string},
      *     last_checked_at: string|null
@@ -42,7 +42,7 @@ class BuildPublicStatus
 
     /**
      * @return array{
-     *     services: list<array{slug: string|null, name: string, state: string, stale: bool, last_checked_at: string|null, updates: list<array{body: string, at: string|null}>}>,
+     *     services: list<array{slug: string|null, name: string, group: string|null, state: string, stale: bool, last_checked_at: string|null, updates: list<array{body: string, at: string|null}>}>,
      *     maintenance: array{open: list<array{description: string, ends_at: string}>, upcoming: list<array{description: string, starts_at: string, ends_at: string}>},
      *     verdict: array{tone: string, headline: string},
      *     last_checked_at: string|null
@@ -50,7 +50,9 @@ class BuildPublicStatus
      */
     private function build(CarbonImmutable $now): array
     {
-        $services = Service::query()->public()->orderBy('name')->get();
+        // Grouped first, then alphabetical inside a group, so sections render stably and
+        // ungrouped services fall to the end rather than disappearing (STAT-43).
+        $services = Service::query()->public()->orderByRaw('"group" is null, "group"')->orderBy('name')->get();
 
         $serviceIds = [];
 
@@ -68,6 +70,7 @@ class BuildPublicStatus
             $rows[] = [
                 'slug' => $service->slug,
                 'name' => $service->name,
+                'group' => $service->group,
                 // A frozen state must not be served as current (STAT-19). If the runner
                 // stopped, the honest answer is that we do not know.
                 'state' => $stale
@@ -167,7 +170,7 @@ class BuildPublicStatus
      * nobody can currently confirm should not be folded into "all systems operational",
      * even though it is not an outage either.
      *
-     * @param  list<array{slug: string|null, name: string, state: string, stale: bool, last_checked_at: string|null, updates: list<array{body: string, at: string|null}>}>  $rows
+     * @param  list<array{slug: string|null, name: string, group: string|null, state: string, stale: bool, last_checked_at: string|null, updates: list<array{body: string, at: string|null}>}>  $rows
      * @return array{tone: string, headline: string}
      */
     private function verdict(array $rows): array

@@ -13,6 +13,7 @@ export type StripSlot = {
 export type ServiceSummary = {
     id: number;
     name: string;
+    group: string | null;
     slug: string | null;
     url: string;
     host: string;
@@ -64,6 +65,7 @@ export type ApiToken = {
 export type PublicStatusRow = {
     slug: string | null;
     name: string;
+    group: string | null;
     state: StatusState;
     stale: boolean;
     last_checked_at: string | null;
@@ -167,6 +169,7 @@ export type CheckRow = {
 
 export type ServiceForm = {
     name: string;
+    group: string;
     url: string;
     http_method: 'GET' | 'HEAD';
     expected_status_code: number;
