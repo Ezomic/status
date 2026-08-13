@@ -31,6 +31,7 @@ use Illuminate\Support\Str;
  * @property int $interval_seconds
  * @property int $timeout_seconds
  * @property int $degraded_threshold_ms
+ * @property float|null $uptime_target
  * @property bool $is_active
  * @property bool $is_public
  * @property ServiceState $current_state
@@ -57,6 +58,7 @@ use Illuminate\Support\Str;
     'interval_seconds',
     'timeout_seconds',
     'degraded_threshold_ms',
+    'uptime_target',
     'is_active',
     'is_public',
 ])]
@@ -233,6 +235,7 @@ class Service extends Model
             'interval_seconds' => 'integer',
             'timeout_seconds' => 'integer',
             'degraded_threshold_ms' => 'integer',
+            'uptime_target' => 'float',
             'is_active' => 'boolean',
             'is_public' => 'boolean',
             'http_method' => HttpMethod::class,

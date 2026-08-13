@@ -33,6 +33,7 @@ const form = useForm({
     interval_seconds: props.service?.interval_seconds ?? 60,
     timeout_seconds: props.service?.timeout_seconds ?? 5,
     degraded_threshold_ms: props.service?.degraded_threshold_ms ?? 1000,
+    uptime_target: props.service?.uptime_target ?? '',
     is_active: props.service?.is_active ?? true,
     is_public: props.service?.is_public ?? false,
 });
@@ -268,6 +269,32 @@ function submit() {
                                 {{ form.errors.degraded_threshold_ms }}
                             </p>
                         </div>
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="uptime_target"
+                            >Monthly uptime target (%)
+                            <span class="text-muted-foreground"
+                                >(optional)</span
+                            ></Label
+                        >
+                        <Input
+                            id="uptime_target"
+                            v-model.number="form.uptime_target"
+                            type="number"
+                            step="0.01"
+                            placeholder="99.5"
+                        />
+                        <p class="text-xs text-muted-foreground">
+                            Compared against measured uptime on the monthly
+                            report. Leave empty for no target.
+                        </p>
+                        <p
+                            v-if="form.errors.uptime_target"
+                            class="text-sm text-destructive"
+                        >
+                            {{ form.errors.uptime_target }}
+                        </p>
                     </div>
 
                     <div

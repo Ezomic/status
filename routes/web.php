@@ -5,6 +5,7 @@ use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\IncidentUpdateController;
 use App\Http\Controllers\MaintenanceWindowController;
 use App\Http\Controllers\PublicStatusPageController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +21,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('services/{service}', [ServiceController::class, 'show'])->name('services.show');
     Route::put('services/{service}', [ServiceController::class, 'update'])->name('services.update');
     Route::delete('services/{service}', [ServiceController::class, 'destroy'])->name('services.destroy');
+
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
 
     Route::get('maintenance', [MaintenanceWindowController::class, 'index'])->name('maintenance.index');
     Route::post('maintenance', [MaintenanceWindowController::class, 'store'])->name('maintenance.store');
