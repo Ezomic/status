@@ -76,6 +76,7 @@ class ServiceController extends Controller
                 'interval_seconds' => $service->interval_seconds,
                 'timeout_seconds' => $service->timeout_seconds,
                 'degraded_threshold_ms' => $service->degraded_threshold_ms,
+                'uptime_target' => $service->uptime_target,
                 'uses_tls' => $service->usesTls(),
                 'certificate_expires_at' => $service->certificate_expires_at?->toIso8601String(),
                 'certificate_checked_at' => $service->certificate_checked_at?->toIso8601String(),

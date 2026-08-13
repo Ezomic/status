@@ -39,6 +39,7 @@ export type ServiceDetail = ServiceSummary & {
     interval_seconds: number;
     timeout_seconds: number;
     degraded_threshold_ms: number;
+    uptime_target: number | null;
     uses_tls: boolean;
     certificate_expires_at: string | null;
     certificate_checked_at: string | null;
@@ -177,5 +178,35 @@ export type ServiceForm = {
     interval_seconds: number;
     timeout_seconds: number;
     degraded_threshold_ms: number;
+    // Empty rather than null so the number input stays controlled; the backend turns the
+    // empty string back into null.
+    uptime_target: number | '';
     is_active: boolean;
+};
+
+export type ReportMonth = {
+    month: string;
+    label: string;
+};
+
+export type ReportRow = {
+    id: number;
+    name: string;
+    group: string | null;
+    uptime: number | null;
+    target: number | null;
+    met: boolean | null;
+    checks: number;
+    p50: number | null;
+    p95: number | null;
+    incidents: number;
+    downtime_seconds: number;
+    unresolved: boolean;
+};
+
+export type MonthlyReport = {
+    month: string;
+    label: string;
+    partial: boolean;
+    services: ReportRow[];
 };
