@@ -76,18 +76,19 @@ class HttpProbe
      */
     private function probeChunk(Collection $services): array
     {
-        /** @var Collection<int, float> $elapsed */
-        $elapsed = collect();
+        $timings = new ProbeTimings;
 
         $responses = Http::pool(fn (Pool $pool): array => $services
-            ->map(function (Service $service) use ($pool, $elapsed) {
+            ->map(function (Service $service) use ($pool, $timings) {
                 $request = $pool
                     ->as((string) $service->id)
                     ->timeout($service->timeout_seconds)
                     ->withHeaders($service->headers ?? [])
                     ->withOptions([
-                        'on_stats' => function (TransferStats $stats) use ($elapsed, $service): void {
-                            $elapsed->put($service->id, $stats->getTransferTime() ?? 0.0);
+                        // Summed, not replaced: this fires once per hop, and three of the
+                        // production services redirect to a login page (STAT-30).
+                        'on_stats' => function (TransferStats $stats) use ($timings, $service): void {
+                            $timings->record($service->id, $stats->getTransferTime());
                         },
                     ]);
 
@@ -102,7 +103,7 @@ class HttpProbe
 
         foreach ($services as $service) {
             $response = $responses[(string) $service->id] ?? null;
-            $results[$service->id] = $this->toResult($response, $elapsed->get($service->id), $service);
+            $results[$service->id] = $this->toResult($response, $timings->secondsFor($service->id), $service);
         }
 
         return $results;
