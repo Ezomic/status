@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\HttpMethod;
 use App\Enums\ServiceState;
 use App\Models\Service;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -18,6 +19,7 @@ class ServiceFactory extends Factory
     {
         return [
             'name' => fake()->unique()->company(),
+            'http_method' => HttpMethod::Get,
             'url' => 'https://'.fake()->unique()->domainName(),
             'expected_status_code' => 200,
             'interval_seconds' => 60,

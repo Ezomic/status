@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\CertificateAlert;
+use App\Enums\HttpMethod;
 use App\Enums\ServiceState;
 use Carbon\CarbonImmutable;
 use Database\Factories\ServiceFactory;
@@ -22,6 +23,8 @@ use Illuminate\Support\Str;
  * @property string $name
  * @property string|null $slug
  * @property string $url
+ * @property HttpMethod $http_method
+ * @property array<string, string>|null $headers
  * @property int $expected_status_code
  * @property string|null $expected_body
  * @property int $interval_seconds
@@ -45,8 +48,10 @@ use Illuminate\Support\Str;
     'name',
     'slug',
     'url',
+    'http_method',
     'expected_status_code',
     'expected_body',
+    'headers',
     'interval_seconds',
     'timeout_seconds',
     'degraded_threshold_ms',
@@ -218,6 +223,10 @@ class Service extends Model
             'degraded_threshold_ms' => 'integer',
             'is_active' => 'boolean',
             'is_public' => 'boolean',
+            'http_method' => HttpMethod::class,
+            // Encrypted at rest: an Authorization value is the obvious thing to put in a
+            // header, so this column has to be treated as a secret store (STAT-40).
+            'headers' => 'encrypted:array',
             'current_state' => ServiceState::class,
             'last_checked_at' => 'datetime',
             'last_response_time_ms' => 'integer',
