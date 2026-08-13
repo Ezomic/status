@@ -41,6 +41,28 @@ const DOT: Record<string, string> = {
 };
 
 /**
+ * Sections in payload order, so the server decides the ordering and this only groups
+ * consecutive runs. Ungrouped services collect under a heading-less section rather than
+ * vanishing (STAT-43).
+ */
+const sections = computed(() => {
+    const out: { group: string | null; services: PublicStatusRow[] }[] = [];
+
+    for (const service of props.services) {
+        const last = out[out.length - 1];
+
+        if (last && last.group === service.group) {
+            last.services.push(service);
+            continue;
+        }
+
+        out.push({ group: service.group, services: [service] });
+    }
+
+    return out;
+});
+
+/**
  * Hours and minutes only. formatTime() includes seconds, which is right for an incident
  * log and absurd on a public notice announcing planned work.
  */
@@ -146,59 +168,76 @@ const lastChecked = computed(() => {
                 </p>
             </div>
 
-            <ul
-                v-if="services.length > 0"
-                class="mt-10 divide-y rounded-lg border bg-card"
-            >
-                <li
-                    v-for="service in services"
-                    :key="service.slug ?? service.name"
-                    class="px-4 py-3.5"
+            <template v-if="services.length > 0">
+                <div
+                    v-for="(section, sectionIndex) in sections"
+                    :key="section.group ?? `ungrouped-${sectionIndex}`"
+                    class="mt-10"
                 >
-                    <div class="flex items-center justify-between gap-4">
-                        <span class="font-medium tracking-tight">{{
-                            service.name
-                        }}</span>
-                        <span class="flex items-center gap-2 text-sm">
-                            <span
-                                class="size-2 rounded-full"
-                                :class="DOT[service.state] ?? DOT.unknown"
-                                aria-hidden="true"
-                            />
-                            <span class="text-muted-foreground">{{
-                                service.stale
-                                    ? 'Unconfirmed'
-                                    : stateLabel(service.state)
-                            }}</span>
-                        </span>
-                    </div>
-
-                    <!-- Human-written updates only. The machine-written incident reason
-                         is never published: it carries internal hostnames (STAT-5). -->
-                    <ol
-                        v-if="service.updates.length > 0"
-                        class="mt-3 space-y-2 border-l pl-3"
+                    <h2
+                        v-if="section.group"
+                        class="mb-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase"
                     >
+                        {{ section.group }}
+                    </h2>
+
+                    <ul class="divide-y rounded-lg border bg-card">
                         <li
-                            v-for="(update, index) in service.updates"
-                            :key="index"
-                            class="text-sm"
+                            v-for="service in section.services"
+                            :key="service.slug ?? service.name"
+                            class="px-4 py-3.5"
                         >
-                            <span
-                                v-if="update.at"
-                                class="text-xs text-muted-foreground"
-                                >{{ formatDate(update.at) }}
-                                {{ formatTime(update.at) }}</span
+                            <div
+                                class="flex items-center justify-between gap-4"
                             >
-                            <p
-                                class="whitespace-pre-line text-muted-foreground"
+                                <span class="font-medium tracking-tight">{{
+                                    service.name
+                                }}</span>
+                                <span class="flex items-center gap-2 text-sm">
+                                    <span
+                                        class="size-2 rounded-full"
+                                        :class="
+                                            DOT[service.state] ?? DOT.unknown
+                                        "
+                                        aria-hidden="true"
+                                    />
+                                    <span class="text-muted-foreground">{{
+                                        service.stale
+                                            ? 'Unconfirmed'
+                                            : stateLabel(service.state)
+                                    }}</span>
+                                </span>
+                            </div>
+
+                            <!-- Human-written updates only. The machine-written incident
+                                 reason is never published: it carries internal
+                                 hostnames (STAT-5). -->
+                            <ol
+                                v-if="service.updates.length > 0"
+                                class="mt-3 space-y-2 border-l pl-3"
                             >
-                                {{ update.body }}
-                            </p>
+                                <li
+                                    v-for="(update, index) in service.updates"
+                                    :key="index"
+                                    class="text-sm"
+                                >
+                                    <span
+                                        v-if="update.at"
+                                        class="text-xs text-muted-foreground"
+                                        >{{ formatDate(update.at) }}
+                                        {{ formatTime(update.at) }}</span
+                                    >
+                                    <p
+                                        class="whitespace-pre-line text-muted-foreground"
+                                    >
+                                        {{ update.body }}
+                                    </p>
+                                </li>
+                            </ol>
                         </li>
-                    </ol>
-                </li>
-            </ul>
+                    </ul>
+                </div>
+            </template>
 
             <p
                 v-else

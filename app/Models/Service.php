@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
 /**
  * @property int $id
  * @property string $name
+ * @property string|null $group
  * @property string|null $slug
  * @property string $url
  * @property HttpMethod $http_method
@@ -46,6 +47,7 @@ use Illuminate\Support\Str;
  */
 #[Fillable([
     'name',
+    'group',
     'slug',
     'url',
     'http_method',

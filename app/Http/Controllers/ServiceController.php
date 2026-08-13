@@ -26,7 +26,7 @@ class ServiceController extends Controller
         BuildResponseSparklines $buildSparklines,
         AssessFreshness $assessFreshness,
     ): Response {
-        $services = Service::query()->orderBy('name')->get();
+        $services = Service::query()->orderByRaw('"group" is null, "group"')->orderBy('name')->get();
         $strips = $buildUptimeStrip->handle();
         $sparklines = $buildSparklines->handle();
 
@@ -139,6 +139,7 @@ class ServiceController extends Controller
         return [
             'id' => $service->id,
             'name' => $service->name,
+            'group' => $service->group,
             'slug' => $service->slug,
             'url' => $service->url,
             'host' => $service->host(),

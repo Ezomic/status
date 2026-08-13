@@ -25,6 +25,7 @@ const open = ref(false);
 
 const form = useForm({
     name: props.service?.name ?? '',
+    group: props.service?.group ?? '',
     url: props.service?.url ?? '',
     http_method: props.service?.http_method ?? 'GET',
     expected_status_code: props.service?.expected_status_code ?? 200,
@@ -98,6 +99,31 @@ function submit() {
                             class="text-sm text-destructive"
                         >
                             {{ form.errors.name }}
+                        </p>
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="group"
+                            >Group
+                            <span class="text-muted-foreground"
+                                >(optional)</span
+                            ></Label
+                        >
+                        <Input
+                            id="group"
+                            v-model="form.group"
+                            placeholder="Core"
+                            autocomplete="off"
+                        />
+                        <p class="text-xs text-muted-foreground">
+                            Groups services into sections. Shown publicly, so
+                            keep it free of internal detail.
+                        </p>
+                        <p
+                            v-if="form.errors.group"
+                            class="text-sm text-destructive"
+                        >
+                            {{ form.errors.group }}
                         </p>
                     </div>
 

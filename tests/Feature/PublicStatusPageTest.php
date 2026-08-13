@@ -92,7 +92,7 @@ it('exposes only the whitelisted keys per service', function () {
             $service = $page->toArray()['props']['services'][0];
 
             expect(array_keys($service))
-                ->toBe(['slug', 'name', 'state', 'stale', 'last_checked_at', 'updates']);
+                ->toBe(['slug', 'name', 'group', 'state', 'stale', 'last_checked_at', 'updates']);
         });
 });
 

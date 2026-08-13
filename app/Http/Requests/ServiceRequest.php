@@ -15,6 +15,9 @@ class ServiceRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            // Shown to readers on the public page, so it is subject to the same rule as a
+            // service name: no internal detail (STAT-43).
+            'group' => ['nullable', 'string', 'max:255'],
             'url' => ['required', 'url:http,https', 'max:255'],
             'http_method' => ['required', Rule::enum(HttpMethod::class)],
             'expected_status_code' => ['required', 'integer', 'min:100', 'max:599'],
