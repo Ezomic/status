@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Monitoring;
 
+use App\Enums\CheckSource;
 use App\Enums\ServiceState;
 use App\Models\Check;
 use App\Models\Service;
@@ -21,6 +22,9 @@ class RecordCheck
         );
 
         $check = $service->checks()->create([
+            // Written rather than left to the column default, because this action is what
+            // an external source will not go through (STAT-45).
+            'source' => CheckSource::Internal,
             'status_code' => $probe->statusCode,
             'response_time_ms' => $probe->responseTimeMs,
             'ok' => $state !== ServiceState::Down,

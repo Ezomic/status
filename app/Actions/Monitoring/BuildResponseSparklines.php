@@ -35,6 +35,7 @@ class BuildResponseSparklines
         // records 0ms, which would otherwise drag the average toward an impossibly
         // fast request.
         $rows = Check::query()
+            ->internal()
             ->selectRaw('service_id')
             ->selectRaw('substr(checked_at, 1, 13) as hour')
             ->selectRaw('avg(response_time_ms) as average_ms')

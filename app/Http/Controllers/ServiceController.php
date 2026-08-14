@@ -58,6 +58,7 @@ class ServiceController extends Controller
         // Latency views plot only checks that got a response: a failed connection
         // records 0ms, which would otherwise read as an impossibly fast request.
         $recent = $service->checks()
+            ->internal()
             ->where('checked_at', '>=', $since)
             ->whereNotNull('status_code')
             ->orderBy('checked_at')
@@ -94,6 +95,7 @@ class ServiceController extends Controller
                     'ms' => $check->response_time_ms,
                 ])->values(),
             'recentChecks' => $service->checks()
+                ->internal()
                 ->orderByDesc('id')
                 ->limit(20)
                 ->get()
@@ -175,6 +177,7 @@ class ServiceController extends Controller
     private function uptimeSince(Service $service, CarbonImmutable $since): ?float
     {
         $measured = $service->checks()
+            ->internal()
             ->where('checked_at', '>=', $since)
             ->where('state', '!=', ServiceState::Maintenance)
             ->count();
@@ -184,6 +187,7 @@ class ServiceController extends Controller
         }
 
         $down = $service->checks()
+            ->internal()
             ->where('checked_at', '>=', $since)
             ->where('state', ServiceState::Down)
             ->count();

@@ -38,6 +38,7 @@ class BuildUptimeStrip
         $since = CarbonImmutable::today()->subDays($days - 1);
 
         $buckets = Check::query()
+            ->internal()
             ->selectRaw('service_id')
             ->selectRaw('date(checked_at) as day')
             ->selectRaw('count(*) as total')
