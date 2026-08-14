@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Monitoring;
 
+use App\Enums\CheckSource;
 use App\Enums\IncidentChange;
 use App\Enums\ServiceState;
 use App\Models\Check;
@@ -25,6 +26,15 @@ class EvaluateIncident
      */
     public function handle(Service $service, Check $check): ?Incident
     {
+        // Only the droplet's own checks decide incidents (STAT-45). Skipping previous
+        // external checks is not enough on its own: an external failure arriving after an
+        // internal one would still find a matching previous check and open an incident
+        // from a mixed pair. Whether a source polling every few minutes should be allowed
+        // to declare an outage is STAT-46's question, not something to inherit by accident.
+        if ($check->source !== CheckSource::Internal) {
+            return $service->openIncident();
+        }
+
         // Declared planned work is neutral for the same reasons as a detected deploy, and
         // must not resolve an open incident either: a window is not a recovery (STAT-37).
         // The check itself is still recorded honestly by RecordCheck, so the data does not
@@ -122,6 +132,7 @@ class EvaluateIncident
     private function previousCheck(Service $service, Check $check): ?Check
     {
         return $service->checks()
+            ->internal()
             ->where('id', '<', $check->id)
             ->where('state', '!=', ServiceState::Maintenance)
             ->orderByDesc('id')

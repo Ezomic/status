@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Monitoring;
 
+use App\Enums\CheckSource;
 use App\Enums\ServiceState;
 use App\Models\Incident;
 use App\Models\Service;
@@ -134,6 +135,7 @@ class BuildMonthlyReport
     private function availability(CarbonImmutable $start, CarbonImmutable $end): array
     {
         $rows = DB::table('checks')
+            ->where('source', CheckSource::Internal->value)
             ->selectRaw('service_id, count(*) as measured, sum(case when state = ? then 1 else 0 end) as down', [
                 ServiceState::Down->value,
             ])
@@ -171,6 +173,7 @@ class BuildMonthlyReport
     private function latency(CarbonImmutable $start, CarbonImmutable $end): array
     {
         $ranked = DB::table('checks')
+            ->where('source', CheckSource::Internal->value)
             ->selectRaw('service_id, response_time_ms, cume_dist() over (partition by service_id order by response_time_ms) as position')
             ->whereNotNull('status_code')
             ->where('checked_at', '>=', $start)

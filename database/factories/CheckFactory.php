@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\CheckSource;
 use App\Enums\ServiceState;
 use App\Models\Check;
 use App\Models\Service;
@@ -20,6 +21,7 @@ class CheckFactory extends Factory
     {
         return [
             'service_id' => Service::factory(),
+            'source' => CheckSource::Internal,
             'status_code' => 200,
             'response_time_ms' => fake()->numberBetween(40, 400),
             'ok' => true,
@@ -69,5 +71,10 @@ class CheckFactory extends Factory
             'state' => ServiceState::Down,
             'error' => 'Connection timed out',
         ]);
+    }
+
+    public function external(): static
+    {
+        return $this->state(fn (): array => ['source' => CheckSource::External]);
     }
 }
