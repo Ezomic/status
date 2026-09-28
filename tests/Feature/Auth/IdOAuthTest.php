@@ -6,7 +6,6 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class IdOAuthTest extends TestCase
@@ -144,30 +143,7 @@ class IdOAuthTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_the_remember_me_cookie_signs_the_user_back_in_once_the_session_is_gone()
-    {
-        $cookie = $this->signInThroughId();
-
-        $this->returnWithOnly($cookie)->assertOk();
-
-        $this->assertAuthenticatedAs(User::where('id_sub', '42')->firstOrFail());
-    }
-
-    public function test_logout_stops_the_remember_me_cookie_from_signing_the_user_back_in()
-    {
-        $cookie = $this->signInThroughId();
-        $this->returnWithOnly($cookie)->assertOk();
-        $user = User::where('id_sub', '42')->firstOrFail();
-        $token = $user->remember_token;
-
-        $this->post(route('logout'))->assertRedirect('/');
-
-        $this->assertNotSame($token, $user->fresh()?->remember_token);
-        $this->returnWithOnly($cookie)->assertRedirect(route('login'));
-        $this->assertGuest();
-    }
-
-    private function signInThroughId(): string
+    public function test_signing_in_through_id_sets_no_remember_me_cookie()
     {
         Http::fake([
             'https://id.test/oauth/token' => Http::response(['access_token' => 'token-abc']),
@@ -178,26 +154,27 @@ class IdOAuthTest extends TestCase
             ]),
         ]);
 
-        $cookie = $this
+        $this
             ->withSession(['id_oauth.state' => 'state-1', 'id_oauth.verifier' => 'verifier-1'])
             ->get(route('auth.callback', ['code' => 'auth-code', 'state' => 'state-1']))
-            ->getCookie($this->recallerName());
+            ->assertRedirect(route('dashboard'))
+            ->assertCookieMissing($this->recallerName());
 
-        $this->assertNotNull($cookie);
-
-        return (string) $cookie->getValue();
+        $this->assertNull(User::where('id_sub', '42')->firstOrFail()->remember_token);
     }
 
-    /**
-     * A browser coming back after its session expired, carrying nothing but
-     * the remember-me cookie.
-     */
-    private function returnWithOnly(string $cookie): TestResponse
+    public function test_remember_me_cookies_already_issued_do_not_sign_the_user_back_in()
     {
-        Auth::forgetGuards();
-        $this->flushSession();
+        // Sign-ins before STAT-52 set these, hashing the null password as ''. Honouring
+        // them would bring back 400-day sessions that an ID sign-out never reaches.
+        $user = User::factory()->create(['remember_token' => 'issued-earlier']);
+        $cookie = $user->id.'|issued-earlier|'.Auth::guard('web')->hashPasswordForCookie('');
 
-        return $this->withCookie($this->recallerName(), $cookie)->get(route('dashboard'));
+        $this->withCookie($this->recallerName(), $cookie)
+            ->get(route('dashboard'))
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
     }
 
     private function recallerName(): string

@@ -73,16 +73,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Users sign in through ID and have no password column (STAT-7). Since Laravel
-     * 13.32 the guard refuses a remember-me cookie when this is not a string, so the
-     * inherited null limited every sign-in to the session lifetime (STAT-52).
-     */
-    public function getAuthPassword(): string
-    {
-        return '';
-    }
-
-    /**
      * @return array<string, string>
      */
     protected function casts(): array
