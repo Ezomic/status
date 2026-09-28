@@ -44,6 +44,9 @@ return [
      */
     'monitor' => [
         'concurrency' => env('MONITOR_CONCURRENCY'),
+
+        // Pinged by every healthy monitor:run (STAT-36). Unset = no ping.
+        'heartbeat_url' => env('MONITOR_HEARTBEAT_URL'),
     ],
 
     'status_endpoint' => [
