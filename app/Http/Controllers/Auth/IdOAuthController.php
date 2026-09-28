@@ -93,7 +93,10 @@ class IdOAuthController extends Controller
             'id_sub' => $sub,
         ])->save();
 
-        Auth::login($user, remember: true);
+        // No remember-me cookie (STAT-52): ID sends status no back-channel logout, so a
+        // long-lived cookie would outlive an ID sign-out or access revocation. An expired
+        // session goes back through ID instead, which checks access again on the way.
+        Auth::login($user);
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'));

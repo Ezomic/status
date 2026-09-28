@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -140,5 +141,44 @@ class IdOAuthTest extends TestCase
             ->assertRedirect('/');
 
         $this->assertGuest();
+    }
+
+    public function test_signing_in_through_id_sets_no_remember_me_cookie()
+    {
+        Http::fake([
+            'https://id.test/oauth/token' => Http::response(['access_token' => 'token-abc']),
+            'https://id.test/api/userinfo' => Http::response([
+                'sub' => '42',
+                'name' => 'Ada Lovelace',
+                'email' => 'ada@example.com',
+            ]),
+        ]);
+
+        $this
+            ->withSession(['id_oauth.state' => 'state-1', 'id_oauth.verifier' => 'verifier-1'])
+            ->get(route('auth.callback', ['code' => 'auth-code', 'state' => 'state-1']))
+            ->assertRedirect(route('dashboard'))
+            ->assertCookieMissing($this->recallerName());
+
+        $this->assertNull(User::where('id_sub', '42')->firstOrFail()->remember_token);
+    }
+
+    public function test_remember_me_cookies_already_issued_do_not_sign_the_user_back_in()
+    {
+        // Sign-ins before STAT-52 set these, hashing the null password as ''. Honouring
+        // them would bring back 400-day sessions that an ID sign-out never reaches.
+        $user = User::factory()->create(['remember_token' => 'issued-earlier']);
+        $cookie = $user->id.'|issued-earlier|'.Auth::guard('web')->hashPasswordForCookie('');
+
+        $this->withCookie($this->recallerName(), $cookie)
+            ->get(route('dashboard'))
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
+    }
+
+    private function recallerName(): string
+    {
+        return Auth::guard('web')->getRecallerName();
     }
 }
