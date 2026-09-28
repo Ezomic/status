@@ -20,7 +20,7 @@ class UserFactory extends Factory
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
-            'id_sub' => (string) fake()->unique()->numberBetween(1, 1_000_000),
+            'idp_id' => (string) fake()->unique()->numberBetween(1, 1_000_000),
             'remember_token' => Str::random(10),
         ];
     }

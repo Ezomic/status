@@ -22,12 +22,13 @@ use Laravel\Sanctum\PersonalAccessToken;
  * @property Carbon|null $email_verified_at
  * @property bool $wants_incident_mail
  * @property-read Collection<int, PersonalAccessToken> $tokens
- * @property string|null $id_sub
+ * @property string|null $idp_id
+ * @property Carbon|null $sso_logged_out_at
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'id_sub', 'wants_incident_mail'])]
+#[Fillable(['name', 'email', 'wants_incident_mail'])]
 #[Hidden(['remember_token'])]
 class User extends Authenticatable
 {
@@ -73,12 +74,23 @@ class User extends Authenticatable
     }
 
     /**
+     * Since 13.32 Laravel refuses a remember-me cookie when this is not a string, and status
+     * users have no password column: they only ever sign in through ID, and nothing here
+     * checks a password. So every cookie id-client sets was refused without this. STAT-53.
+     */
+    public function getAuthPassword(): string
+    {
+        return '';
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
+            'sso_logged_out_at' => 'datetime',
             'wants_incident_mail' => 'boolean',
         ];
     }

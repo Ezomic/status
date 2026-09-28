@@ -50,14 +50,22 @@ return [
         'token' => env('STATUS_ENDPOINT_TOKEN'),
     ],
 
-    // id SSO (OAuth2 authorization-code). The only way to sign in (STAT-7).
+    // The ID client, for the portal switcher. Signing in goes through id-client below.
     'id' => [
         'base_url' => rtrim((string) env('ID_BASE_URL', 'https://id.thijssensoftware.nl'), '/'),
         'client_id' => env('ID_CLIENT_ID'),
         'client_secret' => env('ID_CLIENT_SECRET'),
-        'redirect_uri' => env('ID_REDIRECT_URI'),
         'slug' => env('ID_APP_SLUG', 'status'),
         'portal_cache_ttl' => (int) env('ID_PORTAL_TTL', 300),
+    ],
+
+    // id-client signs in through ID (STAT-7, STAT-53). It would read THIJSSENSOFTWARE_ID_*
+    // on its own; this points it at the ID_* variables status already has. The redirect is
+    // left to id-client, because ID only sends back-channel logouts to /auth/sso/callback.
+    'thijssensoftware' => [
+        'base_url' => rtrim((string) env('ID_BASE_URL', 'https://id.thijssensoftware.nl'), '/'),
+        'client_id' => env('ID_CLIENT_ID'),
+        'client_secret' => env('ID_CLIENT_SECRET'),
     ],
 
 ];
