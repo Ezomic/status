@@ -9,14 +9,15 @@
     ],
     "license": "MIT",
     "require": {
+        "php": "^8.4",
         "inertiajs/inertia-laravel": "^3.0",
         "laravel/chisel": "^0.1.0",
         "laravel/framework": "^13.17",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
-        "php": "^8.4",
         "thijssensoftware/flare-client": "^0.3.4",
+        "thijssensoftware/id-client": "^0.4",
         "thijssensoftware/snag-client": "^0.1.0"
     },
     "require-dev": {
@@ -121,6 +122,10 @@
         {
             "type": "vcs",
             "url": "https://github.com/Ezomic/flare-client.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/Ezomic/id-client.git"
         },
         {
             "type": "vcs",
