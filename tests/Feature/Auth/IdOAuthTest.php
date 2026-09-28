@@ -4,7 +4,9 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class IdOAuthTest extends TestCase
@@ -140,5 +142,66 @@ class IdOAuthTest extends TestCase
             ->assertRedirect('/');
 
         $this->assertGuest();
+    }
+
+    public function test_the_remember_me_cookie_signs_the_user_back_in_once_the_session_is_gone()
+    {
+        $cookie = $this->signInThroughId();
+
+        $this->returnWithOnly($cookie)->assertOk();
+
+        $this->assertAuthenticatedAs(User::where('id_sub', '42')->firstOrFail());
+    }
+
+    public function test_logout_stops_the_remember_me_cookie_from_signing_the_user_back_in()
+    {
+        $cookie = $this->signInThroughId();
+        $this->returnWithOnly($cookie)->assertOk();
+        $user = User::where('id_sub', '42')->firstOrFail();
+        $token = $user->remember_token;
+
+        $this->post(route('logout'))->assertRedirect('/');
+
+        $this->assertNotSame($token, $user->fresh()?->remember_token);
+        $this->returnWithOnly($cookie)->assertRedirect(route('login'));
+        $this->assertGuest();
+    }
+
+    private function signInThroughId(): string
+    {
+        Http::fake([
+            'https://id.test/oauth/token' => Http::response(['access_token' => 'token-abc']),
+            'https://id.test/api/userinfo' => Http::response([
+                'sub' => '42',
+                'name' => 'Ada Lovelace',
+                'email' => 'ada@example.com',
+            ]),
+        ]);
+
+        $cookie = $this
+            ->withSession(['id_oauth.state' => 'state-1', 'id_oauth.verifier' => 'verifier-1'])
+            ->get(route('auth.callback', ['code' => 'auth-code', 'state' => 'state-1']))
+            ->getCookie($this->recallerName());
+
+        $this->assertNotNull($cookie);
+
+        return (string) $cookie->getValue();
+    }
+
+    /**
+     * A browser coming back after its session expired, carrying nothing but
+     * the remember-me cookie.
+     */
+    private function returnWithOnly(string $cookie): TestResponse
+    {
+        Auth::forgetGuards();
+        $this->flushSession();
+
+        return $this->withCookie($this->recallerName(), $cookie)->get(route('dashboard'));
+    }
+
+    private function recallerName(): string
+    {
+        return Auth::guard('web')->getRecallerName();
     }
 }
