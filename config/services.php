@@ -47,6 +47,9 @@ return [
 
         // Pinged by every healthy monitor:run (STAT-36). Unset = no ping.
         'heartbeat_url' => env('MONITOR_HEARTBEAT_URL'),
+
+        // Receives incident and certificate alerts (STAT-35, STAT-38). Unset = no POST.
+        'incident_webhook_url' => env('MONITOR_INCIDENT_WEBHOOK_URL'),
     ],
 
     'status_endpoint' => [

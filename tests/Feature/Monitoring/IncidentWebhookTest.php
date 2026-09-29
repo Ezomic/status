@@ -109,6 +109,25 @@ it('never puts the incident reason or a hostname in the payload', function () {
     }
 });
 
+it('posts to the URL production sets in MONITOR_INCIDENT_WEBHOOK_URL', function () {
+    // The tests above set the config key directly, so they kept passing while
+    // config/services.php never read it from the environment (STAT-54).
+    $_SERVER['MONITOR_INCIDENT_WEBHOOK_URL'] = 'https://chat.example/hooks/from-env';
+
+    try {
+        config()->set('services.monitor', (require config_path('services.php'))['monitor']);
+    } finally {
+        unset($_SERVER['MONITOR_INCIDENT_WEBHOOK_URL']);
+    }
+
+    Http::fake(['*' => Http::response('', 200)]);
+
+    walk($this->service, [ServiceState::Up, ServiceState::Down, ServiceState::Down]);
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://chat.example/hooks/from-env'
+        && $request['event'] === 'opened');
+});
+
 it('sends nothing when no webhook is configured', function () {
     config()->set('services.monitor.incident_webhook_url', null);
     Http::fake(['*' => Http::response('', 200)]);
