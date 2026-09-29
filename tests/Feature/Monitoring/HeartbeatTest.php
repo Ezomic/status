@@ -37,6 +37,25 @@ it('pings when nothing was due, because the runner still ran', function () {
     Http::assertSent(fn ($request) => $request->url() === HEARTBEAT);
 });
 
+it('pings the URL production sets in MONITOR_HEARTBEAT_URL', function () {
+    // The tests above set the config key directly, so they kept passing while
+    // config/services.php never read it from the environment (STAT-44).
+    $_SERVER['MONITOR_HEARTBEAT_URL'] = 'https://hc.example/ping/from-env';
+
+    try {
+        config()->set('services.monitor', (require config_path('services.php'))['monitor']);
+    } finally {
+        unset($_SERVER['MONITOR_HEARTBEAT_URL']);
+    }
+
+    Http::fake(['*' => Http::response('ok', 200)]);
+    Service::factory()->create(['last_checked_at' => null]);
+
+    $this->artisan('monitor:run')->assertSuccessful();
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://hc.example/ping/from-env');
+});
+
 it('sends nothing when no heartbeat is configured', function () {
     config()->set('services.monitor.heartbeat_url', null);
     Http::fake(['*' => Http::response('ok', 200)]);
