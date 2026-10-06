@@ -85,7 +85,7 @@ class HttpProbe
                 $request = $pool
                     ->as((string) $service->id)
                     ->timeout($service->timeout_seconds)
-                    ->withHeaders(['User-Agent' => self::USER_AGENT, ...($service->headers ?? [])])
+                    ->withHeaders($this->headersFor($service))
                     ->withOptions([
                         // Summed, not replaced: this fires once per hop, and three of the
                         // production services redirect to a login page (STAT-30).
@@ -181,5 +181,16 @@ class HttpProbe
         );
 
         return mb_substr(trim($message), 0, 255);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function headersFor(Service $service): array
+    {
+        $headers = $service->headers ?? [];
+        $overridesAgent = collect($headers)->keys()->contains(fn ($name): bool => strcasecmp((string) $name, 'User-Agent') === 0);
+
+        return $overridesAgent ? $headers : ['User-Agent' => self::USER_AGENT, ...$headers];
     }
 }

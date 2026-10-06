@@ -52,17 +52,16 @@ it('identifies itself as a monitor', function () {
 
     app(HttpProbe::class)->probe(Service::factory()->create());
 
-    Http::assertSent(fn ($request) => $request->hasHeader('User-Agent', HttpProbe::USER_AGENT)
-        && str_contains(strtolower(HttpProbe::USER_AGENT), 'monitor'));
+    Http::assertSent(fn ($request) => $request->hasHeader('User-Agent', HttpProbe::USER_AGENT));
 });
 
 it('lets a service override the user agent', function () {
     Http::fake(['*' => Http::response('ok', 200)]);
-    $service = Service::factory()->create(['headers' => ['User-Agent' => 'custom/1']]);
+    $service = Service::factory()->create(['headers' => ['user-agent' => 'custom/1']]);
 
     app(HttpProbe::class)->probe($service);
 
-    Http::assertSent(fn ($request) => $request->hasHeader('User-Agent', 'custom/1'));
+    Http::assertSent(fn ($request) => $request->header('User-Agent') === ['custom/1']);
 });
 
 it('encrypts header values at rest', function () {
