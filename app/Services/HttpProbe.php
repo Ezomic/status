@@ -37,6 +37,8 @@ class HttpProbe
      */
     public const DEFAULT_CONCURRENCY = 3;
 
+    public const USER_AGENT = 'ThijssenStatus/1.0 (uptime monitor)';
+
     /**
      * Probe every service, a few at a time.
      *
@@ -83,7 +85,7 @@ class HttpProbe
                 $request = $pool
                     ->as((string) $service->id)
                     ->timeout($service->timeout_seconds)
-                    ->withHeaders($service->headers ?? [])
+                    ->withHeaders(['User-Agent' => self::USER_AGENT, ...($service->headers ?? [])])
                     ->withOptions([
                         // Summed, not replaced: this fires once per hop, and three of the
                         // production services redirect to a login page (STAT-30).
