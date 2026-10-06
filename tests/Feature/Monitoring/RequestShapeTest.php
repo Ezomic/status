@@ -47,6 +47,23 @@ it('sends configured headers', function () {
         && $request->hasHeader('Accept', 'application/json'));
 });
 
+it('identifies itself as a monitor', function () {
+    Http::fake(['*' => Http::response('ok', 200)]);
+
+    app(HttpProbe::class)->probe(Service::factory()->create());
+
+    Http::assertSent(fn ($request) => $request->hasHeader('User-Agent', HttpProbe::USER_AGENT));
+});
+
+it('lets a service override the user agent', function () {
+    Http::fake(['*' => Http::response('ok', 200)]);
+    $service = Service::factory()->create(['headers' => ['user-agent' => 'custom/1']]);
+
+    app(HttpProbe::class)->probe($service);
+
+    Http::assertSent(fn ($request) => $request->header('User-Agent') === ['custom/1']);
+});
+
 it('encrypts header values at rest', function () {
     // The services table becomes a secret store the moment someone puts an Authorization
     // value here, so the raw row must not contain it.
