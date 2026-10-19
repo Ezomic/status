@@ -8,7 +8,6 @@ use App\Enums\ServiceState;
 use App\Models\Check;
 use App\Models\Service;
 use Carbon\CarbonImmutable;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
 const WEBHOOK = 'https://chat.example/hooks/abc';
@@ -139,17 +138,24 @@ it('sends nothing when no webhook is configured', function () {
 
 it('does not let a dead webhook stop the checks', function () {
     Http::fake([
-        '*chat.example*' => fn () => throw new ConnectionException('webhook unreachable'),
+        '*chat.example*' => Http::failedConnection('webhook unreachable'),
+        'https://probed.example/*' => Http::response('down', 500),
         '*' => Http::response('ok', 200),
     ]);
 
-    $service = Service::factory()->create(['last_checked_at' => null]);
+    // RunMonitorChecks catches per service, so a webhook exception is only observable when
+    // this is the sole active service: the run would then exit FAILURE.
+    $this->service->update(['is_active' => false]);
 
-    // Two rounds so an incident opens and the webhook is actually attempted.
+    $service = Service::factory()->create(['url' => 'https://probed.example/health', 'last_checked_at' => null]);
+
     $this->artisan('monitor:run --force')->assertSuccessful();
     $this->artisan('monitor:run --force')->assertSuccessful();
 
-    expect(Check::where('service_id', $service->id)->count())->toBe(2);
+    Http::assertSent(fn ($request) => $request->url() === WEBHOOK && $request['event'] === 'opened');
+
+    expect(Check::where('service_id', $service->id)->count())->toBe(2)
+        ->and($service->incidents()->count())->toBe(1);
 });
 
 it('stays quiet when a paused service has its incident closed as housekeeping', function () {
