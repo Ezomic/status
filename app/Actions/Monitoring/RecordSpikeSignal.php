@@ -8,6 +8,7 @@ use App\Enums\SpikeSignalState;
 use App\Models\SpikeSignal;
 use App\Services\SpikeSignalWebhook;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 /**
  * @phpstan-type SignalData array{source: string, key: string, state: string, application: array{id: int, name: string}, route?: string|null, window_minutes: int, count: int, baseline_per_window: float|int|string, threshold: float|int|string, detected_at: string}
@@ -25,8 +26,20 @@ class RecordSpikeSignal
      */
     public function handle(array $data): bool
     {
+        try {
+            return $this->record($data);
+        } catch (UniqueConstraintViolationException) {
+            return $this->record($data);
+        }
+    }
+
+    /**
+     * @param  SignalData  $data
+     */
+    private function record(array $data): bool
+    {
         $state = SpikeSignalState::from($data['state']);
-        $detectedAt = CarbonImmutable::parse($data['detected_at']);
+        $detectedAt = CarbonImmutable::parse($data['detected_at'])->utc();
         $signal = SpikeSignal::query()->where('source', $data['source'])->where('key', $data['key'])->first();
 
         if ($signal instanceof SpikeSignal && ($signal->state === $state || $signal->detected_at->greaterThan($detectedAt))) {

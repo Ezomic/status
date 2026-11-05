@@ -160,6 +160,12 @@ describe('recording', function (): void {
         expect(SpikeSignal::query()->sole()->state)->toBe(SpikeSignalState::Open);
     });
 
+    it('stores a time with an offset as the same instant in UTC', function (): void {
+        sendSignal(signal(['detected_at' => '2026-11-05T12:00:00+02:00']))->assertAccepted();
+
+        expect(SpikeSignal::query()->sole()->detected_at->toIso8601String())->toBe('2026-11-05T10:00:00+00:00');
+    });
+
     it('keeps signals with different keys apart', function (): void {
         sendSignal(signal())->assertAccepted();
         sendSignal(signal(['key' => 'app:12', 'route' => null]))->assertAccepted();
