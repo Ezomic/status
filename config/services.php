@@ -56,6 +56,12 @@ return [
         'token' => env('STATUS_ENDPOINT_TOKEN'),
     ],
 
+    // Bearer token snag presents when it reports a report spike (SNAG-34). Separate from the
+    // read token above. Unset = endpoint disabled.
+    'spike_signal' => [
+        'token' => env('STATUS_SIGNAL_TOKEN'),
+    ],
+
     // The ID client, for the portal switcher. Signing in goes through id-client below.
     'id' => [
         'base_url' => rtrim((string) env('ID_BASE_URL', 'https://id.thijssensoftware.nl'), '/'),
