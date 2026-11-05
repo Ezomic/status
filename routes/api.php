@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\PublicStatusController;
+use App\Http\Controllers\SpikeSignalController;
+use App\Http\Middleware\AuthenticateSignalToken;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -21,3 +23,11 @@ use Illuminate\Support\Facades\Route;
 Route::get('status', [PublicStatusController::class, 'index'])
     ->middleware('throttle:30,1')
     ->name('api.status');
+
+/*
+ * Symptom signals from other apps (SNAG-34): report spikes while the app still answers 200s,
+ * which polling cannot see. Its own token, never the read token above.
+ */
+Route::post('signals/spikes', [SpikeSignalController::class, 'store'])
+    ->middleware(['throttle:120,1', AuthenticateSignalToken::class])
+    ->name('api.signals.spikes');
